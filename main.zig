@@ -24,14 +24,10 @@ pub fn main(init: std.process.Init) !void {
         dims.deinit();
     }
 
-    // Initialize and add base dimensions.
+    // Initialize base dimensions.
     var kilograms = try Dimension.init("mass", &allocator);
     var meters = try Dimension.init("size", &allocator);
     var seconds = try Dimension.init("time", &allocator);
-
-    try dims.add(kilograms, true);
-    try dims.add(meters, true);
-    try dims.add(seconds, true);
 
     // Add unit factors to dimensions.
     try kilograms.add(
@@ -48,6 +44,21 @@ pub fn main(init: std.process.Init) !void {
         .{ .name = "s", .power = 1 },
         .numerator,
     );
+
+    // Initialize complex dimensions.
+    const velocity = try Dimension.operate(
+        meters,
+        seconds,
+        .div,
+        "velocity",
+        false,
+    );
+
+    // Add dimensions to list.
+    try dims.add(kilograms, true);
+    try dims.add(meters, true);
+    try dims.add(seconds, true);
+    try dims.add(velocity, true);
 
     // Create a quantity type and a buffer.
     const Q32 = Quantity(f32);
@@ -68,7 +79,7 @@ pub fn main(init: std.process.Init) !void {
         d1,
         t1,
         .div,
-        "speed",
+        "velocity 2",
         &dims,
         false,
     );

@@ -7,11 +7,6 @@ pub fn Quantity(comptime T: type) type {
     return struct {
         const Self = @This();
 
-        const Operation = enum(u8) {
-            mul,
-            div,
-        };
-
         value: T,
         dim: *Dimension,
 
@@ -89,39 +84,18 @@ pub fn Quantity(comptime T: type) type {
         pub fn operate(
             a: Self,
             b: Self,
-            comptime operation: Operation,
+            comptime operation: Dimension.Operation,
             new_name: ?[]const u8,
             dimensions: *Dimensions,
-            cross_cancellation: bool,
+            comptime cross_cancellation: bool,
         ) !Self {
-            var dim = try a.dim.clone(new_name);
-            errdefer dim.deinit();
-
-            switch (operation) {
-                .mul => {
-                    // Add b's numerator factors to numerator.
-                    for (b.dim.numerator.items) |factor|
-                        try dim.add(factor, .numerator);
-
-                    // Add b's denominator factors to denominator.
-                    for (b.dim.denominator.items) |factor|
-                        try dim.add(factor, .denominator);
-                },
-
-                .div => {
-                    // Move b's numerator factors to denominator.
-                    for (b.dim.numerator.items) |factor|
-                        try dim.add(factor, .denominator);
-
-                    // Move b's denominator factors to numerator.
-                    for (b.dim.denominator.items) |factor|
-                        try dim.add(factor, .numerator);
-                },
-            }
-
-            if (cross_cancellation)
-                dim.crossCancel();
-
+            const dim = try Dimension.operate(
+                a.dim,
+                b.dim,
+                operation,
+                new_name,
+                cross_cancellation,
+            );
             const calculated_value = switch (operation) {
                 .mul => a.value * b.value,
                 .div => a.value / b.value,

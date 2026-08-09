@@ -25,10 +25,16 @@ pub const Dimensions = struct {
         self.list.deinit(allocator);
     }
 
-    pub fn find(
-        self: *const Self,
-        dimension: Dimension,
-    ) ?*Dimension {
+    pub fn exists(self: *const Self, dimension: Dimension) bool {
+        for (self.list.items) |existing| {
+            if (existing.eql(dimension))
+                return true;
+        }
+
+        return false;
+    }
+
+    pub fn find(self: *const Self, dimension: Dimension) ?*Dimension {
         for (self.list.items) |existing| {
             if (existing.eql(dimension))
                 return existing;
@@ -43,7 +49,7 @@ pub const Dimensions = struct {
         ignore_duplicate: bool,
     ) Allocator.Error!void {
         if (!ignore_duplicate) {
-            if (self.find(dimension.*)) |_|
+            if (self.exists(dimension.*))
                 return;
         }
 

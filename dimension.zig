@@ -4,12 +4,17 @@ const Allocator = std.mem.Allocator;
 const config = @import("config.zig");
 const UnitFactor = @import("unit_factor.zig").UnitFactor;
 
-pub const Dimension = struct { // TODO: add methods (mul, div)
+pub const Dimension = struct {
     const Self = @This();
 
     const Side = enum(u8) {
         numerator,
         denominator,
+    };
+
+    pub const Operation = enum(u8) {
+        mul,
+        div,
     };
 
     name: ?[]const u8,
@@ -136,6 +141,37 @@ pub const Dimension = struct { // TODO: add methods (mul, div)
 
         return factorsEql(a, b, .numerator) and
             factorsEql(a, b, .denominator);
+    }
+
+    pub fn operate(
+        a: *Self,
+        b: *Self,
+        comptime operation: Operation,
+        name: ?[]const u8,
+        comptime cross_cancellation: bool,
+    ) Allocator.Error!*Self {
+        var cloned = try a.clone(name);
+
+        const b_numerator_side: Side = switch (operation) {
+            .mul => .numerator,
+            .div => .denominator,
+        };
+
+        const b_denominator_side: Side = switch (operation) {
+            .mul => .denominator,
+            .div => .numerator,
+        };
+
+        for (b.numerator.items) |factor|
+            try cloned.add(factor, b_numerator_side);
+
+        for (b.denominator.items) |factor|
+            try cloned.add(factor, b_denominator_side);
+
+        if (cross_cancellation)
+            cloned.crossCancel();
+
+        return cloned;
     }
 
     pub fn crossCancel(self: *Self) void {
