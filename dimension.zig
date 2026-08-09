@@ -137,6 +137,39 @@ pub const Dimension = struct { // TODO: add methods (mul, div)
             factorsEql(a, b, .denominator);
     }
 
+    pub fn crossCancel(self: *Self) void {
+        var i: usize = 0;
+
+        while (i < self.numerator.items.len) {
+            var j: usize = 0;
+
+            while (j < self.denominator.items.len) {
+                const numerator = &self.numerator.items[i];
+                const denominator = &self.denominator.items[j];
+
+                if (std.mem.eql(u8, numerator.name, denominator.name)) {
+                    if (numerator.power > denominator.power) {
+                        numerator.power -= denominator.power;
+                        _ = self.denominator.orderedRemove(j);
+                    } else if (numerator.power < denominator.power) {
+                        denominator.power -= numerator.power;
+                        _ = self.numerator.orderedRemove(i);
+                        break;
+                    } else {
+                        _ = self.numerator.orderedRemove(i);
+                        _ = self.denominator.orderedRemove(j);
+                        break;
+                    }
+                } else {
+                    j += 1;
+                }
+            }
+
+            if (i < self.numerator.items.len)
+                i += 1;
+        }
+    }
+
     fn appendFactor(
         self: *const Self,
         bytes: *std.ArrayList(u8),

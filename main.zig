@@ -68,16 +68,18 @@ pub fn main(init: std.process.Init) !void {
         d1,
         t1,
         .div,
-        null,
+        "v1",
         &dims,
+        false,
     );
 
     const v2 = try Q32.operate(
         d2,
         t2,
         .div,
-        null,
+        "v2",
         &dims,
+        false,
     );
 
     const dv = Q32.sub(v2, v1);
@@ -86,8 +88,9 @@ pub fn main(init: std.process.Init) !void {
         dv,
         t,
         .div,
-        null,
+        "a",
         &dims,
+        false,
     );
 
     var f = try Q32.operate(
@@ -96,6 +99,7 @@ pub fn main(init: std.process.Init) !void {
         .mul,
         "force",
         &dims,
+        false,
     );
     try f.show(&buffer, io);
 
@@ -105,6 +109,7 @@ pub fn main(init: std.process.Init) !void {
         .mul,
         "square",
         &dims,
+        false,
     );
     try s.show(&buffer, io);
 
@@ -114,6 +119,7 @@ pub fn main(init: std.process.Init) !void {
         .div,
         "pressure",
         &dims,
+        true,
     );
     try p.show(&buffer, io);
 }

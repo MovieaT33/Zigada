@@ -75,14 +75,13 @@ pub fn Quantity(comptime T: type) type {
             };
         }
 
-        // TODO: add cross-cancellation
-
         pub fn operate(
             a: Self,
             b: Self,
             comptime operation: Operation,
             new_name: ?[]const u8,
             dimensions: *Dimensions,
+            cross_cancellation: bool,
         ) !Self {
             var dim = try a.dim.clone(new_name);
             errdefer dim.deinit();
@@ -108,6 +107,9 @@ pub fn Quantity(comptime T: type) type {
                         try dim.add(factor, .numerator);
                 },
             }
+
+            if (cross_cancellation)
+                dim.crossCancel();
 
             const calculated_value = switch (operation) {
                 .mul => a.value * b.value,
