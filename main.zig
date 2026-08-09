@@ -1,5 +1,6 @@
 const std = @import("std");
 
+const config = @import("config.zig");
 const Dimension = @import("dimension.zig").Dimension;
 const Dimensions = @import("dimensions.zig").Dimensions;
 const Quantity = @import("quantity.zig").Quantity;
@@ -16,13 +17,14 @@ pub fn main(init: std.process.Init) !void {
 
     var allocator = gpa.allocator();
 
-    // Initialize dimensions.
+    // Initialize dimensions list.
     var dims = Dimensions.init(&allocator);
     defer {
         dims.show(io) catch unreachable;
         dims.deinit();
     }
 
+    // Initialize and add base dimensions.
     var kilograms = try Dimension.init("mass", &allocator);
     var meters = try Dimension.init("size", &allocator);
     var seconds = try Dimension.init("time", &allocator);
@@ -47,11 +49,9 @@ pub fn main(init: std.process.Init) !void {
         .numerator,
     );
 
-    // Create a buffer.
-    var buffer: [32]u8 = undefined;
-
-    // Create a quantity type.
+    // Create a quantity type and a buffer.
     const Q32 = Quantity(f32);
+    var buffer: [config.print_buffer_size]u8 = undefined;
 
     // Example:
     const m = Q32.init(10, kilograms);
@@ -68,7 +68,7 @@ pub fn main(init: std.process.Init) !void {
         d1,
         t1,
         .div,
-        "v1",
+        "speed",
         &dims,
         false,
     );
@@ -77,7 +77,7 @@ pub fn main(init: std.process.Init) !void {
         d2,
         t2,
         .div,
-        "v2",
+        null,
         &dims,
         false,
     );
@@ -88,7 +88,7 @@ pub fn main(init: std.process.Init) !void {
         dv,
         t,
         .div,
-        "a",
+        "acceleration",
         &dims,
         false,
     );

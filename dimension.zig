@@ -1,12 +1,13 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+const config = @import("config.zig");
 const UnitFactor = @import("unit_factor.zig").UnitFactor;
 
 pub const Dimension = struct { // TODO: add methods (mul, div)
     const Self = @This();
 
-    const Side = enum {
+    const Side = enum(u8) {
         numerator,
         denominator,
     };
@@ -182,7 +183,7 @@ pub const Dimension = struct { // TODO: add methods (mul, div)
 
         // Append power if it is not 1.
         if (factor.power != 1) {
-            var buffer: [11]u8 = undefined; // ^4_294_967_295 (11 bytes)
+            var buffer: [config.print_buffer_size]u8 = undefined;
 
             const power = try std.fmt.bufPrint(
                 &buffer,
@@ -263,7 +264,7 @@ pub const Dimension = struct { // TODO: add methods (mul, div)
         );
     }
 
-    pub fn show(self: *const Self, io: *const std.Io) !void {
+    pub fn showName(self: *const Self, io: *const std.Io) std.Io.File.WriteFilePositionalError!void {
         var stdout = std.Io.File.stdout();
 
         if (self.name) |name| {
@@ -271,9 +272,14 @@ pub const Dimension = struct { // TODO: add methods (mul, div)
             try stdout.writePositionalAll(io.*, name, 0);
             try stdout.writePositionalAll(io.*, "] = ", 0);
         }
+    }
+
+    pub fn show(self: *const Self, io: *const std.Io) !void {
+        try self.showName(io);
 
         try self.showUnits(io);
 
+        var stdout = std.Io.File.stdout();
         try stdout.writePositionalAll(io.*, "\n", 0);
     }
 };

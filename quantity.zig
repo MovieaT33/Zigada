@@ -1,4 +1,5 @@
 const std = @import("std");
+
 const Dimension = @import("dimension.zig").Dimension;
 const Dimensions = @import("dimensions.zig").Dimensions;
 
@@ -6,7 +7,7 @@ pub fn Quantity(comptime T: type) type {
     return struct {
         const Self = @This();
 
-        const Operation = enum {
+        const Operation = enum(u8) {
             mul,
             div,
         };
@@ -21,8 +22,8 @@ pub fn Quantity(comptime T: type) type {
             };
         }
 
-        pub fn show(
-            self: *Self,
+        pub fn showValue(
+            self: *const Self,
             buffer: []u8,
             io: *const std.Io,
         ) !void {
@@ -35,6 +36,16 @@ pub fn Quantity(comptime T: type) type {
             );
 
             try stdout.writePositionalAll(io.*, value, 0);
+        }
+
+        pub fn show(
+            self: *const Self,
+            buffer: []u8,
+            io: *const std.Io,
+        ) !void {
+            const stdout = std.Io.File.stdout();
+
+            try self.showValue(buffer, io);
 
             try self.dim.*.showUnits(io);
 
