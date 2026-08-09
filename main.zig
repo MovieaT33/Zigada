@@ -40,6 +40,9 @@ pub fn main(init: std.process.Init) !void {
         .numerator,
     );
 
+    // Create a buffer.
+    var buffer: [32]u8 = undefined;
+
     // Create a quantity type.
     const Q32 = Quantity(f32);
 
@@ -67,13 +70,13 @@ pub fn main(init: std.process.Init) !void {
 
     var f = try Q32.mul(&m, &a);
     defer f.dimension.deinit();
-    try f.show(io);
+    try f.show("force", &buffer, io);
 
     var s = try Q32.mul(&s1, &s2);
     defer s.dimension.deinit();
-    try s.show(io);
+    try s.show("square", &buffer, io);
 
     var p = try Q32.div(&f, &s);
     defer p.dimension.deinit();
-    try p.show(io);
+    try p.show("pressure", &buffer, io);
 }

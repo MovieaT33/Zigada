@@ -19,12 +19,28 @@ pub fn Quantity(comptime T: type) type {
             };
         }
 
-        pub fn show(self: *Self, io: *const std.Io) !void { // TODO: add `label`
+        pub fn show(
+            self: *Self,
+            label: []const u8,
+            buffer: []u8,
+            io: *const std.Io,
+        ) !void {
             const stdout = std.Io.File.stdout();
 
-            var buffer: [32]u8 = undefined;
+            try stdout.writePositionalAll(
+                io.*,
+                label,
+                0,
+            );
+
+            try stdout.writePositionalAll(
+                io.*,
+                ": ",
+                0,
+            );
+
             const value = try std.fmt.bufPrint(
-                &buffer,
+                buffer,
                 "{} ",
                 .{self.value},
             );
