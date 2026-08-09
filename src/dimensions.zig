@@ -1,7 +1,8 @@
 const std = @import("std");
-const Allocator = std.mem.Allocator;
 
 const Dimension = @import("dimension.zig").Dimension;
+
+const Allocator = std.mem.Allocator;
 
 pub const Dimensions = struct {
     const Self = @This();

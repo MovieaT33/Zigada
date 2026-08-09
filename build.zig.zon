@@ -1,0 +1,19 @@
+.{
+    .name = .Zigada,
+    .version = "0.0.0",
+    .fingerprint = 0x5c350ece7e3d1728,
+    .minimum_zig_version = "0.16.0",
+    .dependencies = .{
+        .zsort = .{
+            .url = "https://github.com/mstdokumaci/zsort/archive/refs/tags/v0.6.0.tar.gz",
+            .hash = "zsort-0.6.0-D-hm6XoyAgA1yoU-7zV8p1D-whPcR7VGGgBtiF6cNCKH",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "LICENSE",
+        "README.md",
+    },
+}
