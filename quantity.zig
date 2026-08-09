@@ -1,5 +1,6 @@
 const std = @import("std");
 const Dimension = @import("dimension.zig").Dimension;
+const Dimensions = @import("dimensions.zig").Dimensions;
 
 pub const Error = error{
     DimensionMismatch,
@@ -9,10 +10,15 @@ pub fn Quantity(comptime T: type) type {
     return struct {
         const Self = @This();
 
-        value: T,
-        dim: Dimension,
+        const Operation = enum {
+            mul,
+            div,
+        };
 
-        pub fn init(value: T, dimension: Dimension) Self {
+        value: T,
+        dim: *Dimension,
+
+        pub fn init(value: T, dimension: *Dimension) Self {
             return .{
                 .value = value,
                 .dim = dimension,
@@ -21,23 +27,10 @@ pub fn Quantity(comptime T: type) type {
 
         pub fn show(
             self: *Self,
-            label: []const u8,
             buffer: []u8,
             io: *const std.Io,
         ) !void {
             const stdout = std.Io.File.stdout();
-
-            try stdout.writePositionalAll(
-                io.*,
-                label,
-                0,
-            );
-
-            try stdout.writePositionalAll(
-                io.*,
-                ": ",
-                0,
-            );
 
             const value = try std.fmt.bufPrint(
                 buffer,
@@ -51,11 +44,11 @@ pub fn Quantity(comptime T: type) type {
                 0,
             );
 
-            try self.dim.show(io);
+            try self.dim.*.show(io);
         }
 
         pub fn add(a: *const Self, b: *const Self) Error!Self {
-            if (!a.dim.eql(&b.dim))
+            if (!a.dim.*.eql(&b.dim.*))
                 return error.DimensionMismatch;
 
             return .{
@@ -65,7 +58,7 @@ pub fn Quantity(comptime T: type) type {
         }
 
         pub fn sub(a: *const Self, b: *const Self) Error!Self {
-            if (!a.dim.eql(&b.dim))
+            if (!a.dim.*.eql(&b.dim.*))
                 return error.DimensionMismatch;
 
             return .{
@@ -90,35 +83,57 @@ pub fn Quantity(comptime T: type) type {
 
         // TODO: add cross-cancellation
 
-        pub fn mul(a: *const Self, b: *const Self) !Self {
-            var dim = try a.dim.clone();
+        pub fn operate(
+            a: *const Self,
+            b: *const Self,
+            comptime operation: Operation,
+            new_name: ?[]const u8,
+            dimensions: *Dimensions,
+        ) !Self {
+            var dim = try a.dim.clone(new_name);
             errdefer dim.deinit();
 
-            for (b.dim.numerator.items) |factor|
-                try dim.add(factor, .numerator);
+            switch (operation) {
+                .mul => {
+                    // Add b's numerator factors to numerator.
+                    for (b.dim.numerator.items) |factor|
+                        try dim.add(factor, .numerator);
 
-            for (b.dim.denominator.items) |factor|
-                try dim.add(factor, .denominator);
+                    // Add b's denominator factors to denominator.
+                    for (b.dim.denominator.items) |factor|
+                        try dim.add(factor, .denominator);
+                },
 
-            return .{
-                .value = a.value * b.value,
-                .dim = dim,
+                .div => {
+                    // Move b's numerator factors to denominator.
+                    for (b.dim.numerator.items) |factor|
+                        try dim.add(factor, .denominator);
+
+                    // Move b's denominator factors to numerator.
+                    for (b.dim.denominator.items) |factor|
+                        try dim.add(factor, .numerator);
+                },
+            }
+
+            const calculated_value = switch (operation) {
+                .mul => a.value * b.value,
+                .div => a.value / b.value,
             };
-        }
 
-        pub fn div(a: *const Self, b: *const Self) !Self {
-            var dimension = try a.dim.clone();
-            errdefer dimension.deinit();
+            if (dimensions.find(dim)) |existing| {
+                dim.deinit();
 
-            for (b.dim.numerator.items) |factor|
-                try dimension.add(factor, .denominator);
+                return .{
+                    .value = calculated_value,
+                    .dim = existing,
+                };
+            }
 
-            for (b.dim.denominator.items) |factor|
-                try dimension.add(factor, .numerator);
+            try dimensions.add(dim, true);
 
             return .{
-                .value = a.value / b.value,
-                .dim = dimension,
+                .value = calculated_value,
+                .dim = dim,
             };
         }
     };

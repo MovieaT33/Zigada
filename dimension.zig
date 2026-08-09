@@ -11,17 +11,26 @@ pub const Dimension = struct { // TODO: add methods (mul, div)
         denominator,
     };
 
-    // TODO: add name
+    name: ?[]const u8,
     numerator: std.ArrayList(UnitFactor),
     denominator: std.ArrayList(UnitFactor),
     allocator: *Allocator,
 
-    pub fn init(allocator: *Allocator) Self {
-        return .{
+    pub fn init(
+        name: ?[]const u8,
+        allocator: *Allocator,
+    ) Allocator.Error!*Self {
+        const self = try allocator.create(Self);
+        errdefer allocator.destroy(self);
+
+        self.* = .{
+            .name = name,
             .numerator = .empty,
             .denominator = .empty,
             .allocator = allocator,
         };
+
+        return self;
     }
 
     pub fn deinit(self: *Self) void {
@@ -29,6 +38,7 @@ pub const Dimension = struct { // TODO: add methods (mul, div)
 
         self.numerator.deinit(allocator);
         self.denominator.deinit(allocator);
+        allocator.destroy(self);
     }
 
     pub fn add(
@@ -51,8 +61,11 @@ pub const Dimension = struct { // TODO: add methods (mul, div)
         try list.append(self.allocator.*, factor);
     }
 
-    pub fn clone(self: *const Self) Allocator.Error!Self {
-        var dimension: Self = .init(self.allocator);
+    pub fn clone(
+        self: *const Self,
+        name: ?[]const u8,
+    ) Allocator.Error!*Self {
+        const dimension = try Self.init(name, self.allocator);
         errdefer dimension.deinit();
 
         const allocator = self.allocator.*;
@@ -202,6 +215,22 @@ pub const Dimension = struct { // TODO: add methods (mul, div)
     }
 
     pub fn show(self: *const Self, io: *const std.Io) !void {
+        var stdout = std.Io.File.stdout();
+
+        if (self.name) |name| {
+            try stdout.writePositionalAll(
+                io.*,
+                name,
+                0,
+            );
+
+            try stdout.writePositionalAll(
+                io.*,
+                ": ",
+                0,
+            );
+        }
+
         const allocator = self.allocator.*;
 
         var bytes = try self.toBytes();
@@ -209,7 +238,6 @@ pub const Dimension = struct { // TODO: add methods (mul, div)
 
         try bytes.append(allocator, '\n');
 
-        var stdout = std.Io.File.stdout();
         try stdout.writePositionalAll(
             io.*,
             bytes.items,

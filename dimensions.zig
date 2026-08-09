@@ -6,12 +6,12 @@ const Dimension = @import("dimension.zig").Dimension;
 pub const Dimensions = struct {
     const Self = @This();
 
-    dims: std.ArrayList(*Dimension),
+    list: std.ArrayList(*Dimension),
     allocator: *Allocator,
 
     pub fn init(allocator: *Allocator) Self {
         return .{
-            .dims = .empty,
+            .list = .empty,
             .allocator = allocator,
         };
     }
@@ -19,31 +19,39 @@ pub const Dimensions = struct {
     pub fn deinit(self: *Self) void {
         const allocator = self.allocator.*;
 
-        for (self.dims.items) |dimension|
-            dimension.*.deinit();
+        for (self.list.items) |dimension|
+            dimension.deinit();
 
-        self.dims.deinit(allocator);
+        self.list.deinit(allocator);
     }
 
-    pub fn addDimension(
+    pub fn find(
+        self: *const Self,
+        dimension: *const Dimension,
+    ) ?*Dimension {
+        for (self.list.items) |existing| {
+            if (existing.eql(dimension))
+                return existing;
+        }
+
+        return null;
+    }
+
+    pub fn add(
         self: *Self,
         dimension: *Dimension,
         ignore_duplicate: bool,
-    ) Allocator.Error!*Dimension {
+    ) Allocator.Error!void {
         if (!ignore_duplicate) {
-            for (self.dims.items) |existing| {
-                if (existing.eql(dimension))
-                    return existing;
-            }
+            if (self.find(dimension)) |_|
+                return;
         }
 
-        try self.dims.append(self.allocator.*, dimension);
-
-        return self.dims.items[self.dims.items.len - 1];
+        try self.list.append(self.allocator.*, dimension);
     }
 
     pub fn show(self: *const Self, io: *const std.Io) !void {
-        for (self.dims.items) |dimension|
+        for (self.list.items) |dimension|
             try dimension.*.show(io);
     }
 };

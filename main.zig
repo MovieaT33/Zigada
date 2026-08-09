@@ -10,6 +10,7 @@ pub fn main(init: std.process.Init) !void {
     // Initialize GPA.
     var gpa = std.heap.DebugAllocator(.{
         .safety = true,
+        .verbose_log = false,
     }){};
     defer _ = gpa.deinit();
 
@@ -22,13 +23,13 @@ pub fn main(init: std.process.Init) !void {
         dims.deinit();
     }
 
-    var kilograms = Dimension.init(&allocator);
-    var meters = Dimension.init(&allocator);
-    var seconds = Dimension.init(&allocator);
+    var kilograms = try Dimension.init("mass", &allocator);
+    var meters = try Dimension.init("size", &allocator);
+    var seconds = try Dimension.init("time", &allocator);
 
-    _ = try dims.addDimension(&kilograms, true);
-    _ = try dims.addDimension(&meters, true);
-    _ = try dims.addDimension(&seconds, true);
+    try dims.add(kilograms, true);
+    try dims.add(meters, true);
+    try dims.add(seconds, true);
 
     // Add unit factors to dimensions.
     try kilograms.add(
@@ -63,26 +64,56 @@ pub fn main(init: std.process.Init) !void {
     const s1 = Q32.init(2, meters);
     const s2 = Q32.init(2, meters);
 
-    var v1 = try Q32.div(&d1, &t1);
-    defer v1.dim.deinit();
+    var v1 = try Q32.operate(
+        &d1,
+        &t1,
+        .div,
+        null,
+        &dims,
+    );
 
-    var v2 = try Q32.div(&d2, &t2);
-    defer v2.dim.deinit();
+    var v2 = try Q32.operate(
+        &d2,
+        &t2,
+        .div,
+        null,
+        &dims,
+    );
 
     var dv = try Q32.sub(&v2, &v1);
 
-    var a = try Q32.div(&dv, &t);
-    defer a.dim.deinit();
+    var a = try Q32.operate(
+        &dv,
+        &t,
+        .div,
+        null,
+        &dims,
+    );
 
-    var f = try Q32.mul(&m, &a);
-    defer f.dim.deinit();
-    try f.show("force", &buffer, io);
+    var f = try Q32.operate(
+        &m,
+        &a,
+        .mul,
+        "force",
+        &dims,
+    );
+    try f.show(&buffer, io);
 
-    var s = try Q32.mul(&s1, &s2);
-    defer s.dim.deinit();
-    try s.show("square", &buffer, io);
+    var s = try Q32.operate(
+        &s1,
+        &s2,
+        .mul,
+        "square",
+        &dims,
+    );
+    try s.show(&buffer, io);
 
-    var p = try Q32.div(&f, &s);
-    defer p.dim.deinit();
-    try p.show("pressure", &buffer, io);
+    var p = try Q32.operate(
+        &f,
+        &s,
+        .div,
+        "pressure",
+        &dims,
+    );
+    try p.show(&buffer, io);
 }
