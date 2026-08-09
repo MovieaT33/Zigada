@@ -54,45 +54,45 @@ pub fn main(init: std.process.Init) !void {
     const Q32 = Quantity(f32);
 
     // Example:
-    var m = Q32.init(10, kilograms);
+    const m = Q32.init(10, kilograms);
     const d1 = Q32.init(10, meters);
     const t1 = Q32.init(1, seconds);
     const d2 = Q32.init(30, meters);
     const t2 = Q32.init(1, seconds);
-    var t = Q32.init(5, seconds);
+    const t = Q32.init(5, seconds);
 
     const s1 = Q32.init(2, meters);
     const s2 = Q32.init(2, meters);
 
-    var v1 = try Q32.operate(
-        &d1,
-        &t1,
+    const v1 = try Q32.operate(
+        d1,
+        t1,
         .div,
         null,
         &dims,
     );
 
-    var v2 = try Q32.operate(
-        &d2,
-        &t2,
+    const v2 = try Q32.operate(
+        d2,
+        t2,
         .div,
         null,
         &dims,
     );
 
-    var dv = Q32.sub(&v2, &v1);
+    const dv = Q32.sub(v2, v1);
 
-    var a = try Q32.operate(
-        &dv,
-        &t,
+    const a = try Q32.operate(
+        dv,
+        t,
         .div,
         null,
         &dims,
     );
 
     var f = try Q32.operate(
-        &m,
-        &a,
+        m,
+        a,
         .mul,
         "force",
         &dims,
@@ -100,8 +100,8 @@ pub fn main(init: std.process.Init) !void {
     try f.show(&buffer, io);
 
     var s = try Q32.operate(
-        &s1,
-        &s2,
+        s1,
+        s2,
         .mul,
         "square",
         &dims,
@@ -109,8 +109,8 @@ pub fn main(init: std.process.Init) !void {
     try s.show(&buffer, io);
 
     var p = try Q32.operate(
-        &f,
-        &s,
+        f,
+        s,
         .div,
         "pressure",
         &dims,

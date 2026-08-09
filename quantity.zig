@@ -41,8 +41,8 @@ pub fn Quantity(comptime T: type) type {
             try stdout.writePositionalAll(io.*, "\n", 0);
         }
 
-        pub fn add(a: *const Self, b: *const Self) Self {
-            if (!a.dim.*.eql(&b.dim.*))
+        pub fn add(a: Self, b: Self) Self {
+            if (!a.dim.eql(b.dim))
                 unreachable;
 
             return .{
@@ -51,8 +51,8 @@ pub fn Quantity(comptime T: type) type {
             };
         }
 
-        pub fn sub(a: *const Self, b: *const Self) Self {
-            if (!a.dim.*.eql(&b.dim.*))
+        pub fn sub(a: Self, b: Self) Self {
+            if (!a.dim.eql(b.dim.*))
                 unreachable;
 
             return .{
@@ -61,14 +61,14 @@ pub fn Quantity(comptime T: type) type {
             };
         }
 
-        pub fn scale(a: *const Self, b: T) Self {
+        pub fn scale(a: Self, b: T) Self {
             return .{
                 .value = a.value * b,
                 .dim = a.dim,
             };
         }
 
-        pub fn unscale(a: *const Self, b: T) Self {
+        pub fn unscale(a: Self, b: T) Self {
             return .{
                 .value = a.value / b,
                 .dim = a.dim,
@@ -78,8 +78,8 @@ pub fn Quantity(comptime T: type) type {
         // TODO: add cross-cancellation
 
         pub fn operate(
-            a: *const Self,
-            b: *const Self,
+            a: Self,
+            b: Self,
             comptime operation: Operation,
             new_name: ?[]const u8,
             dimensions: *Dimensions,
@@ -114,7 +114,7 @@ pub fn Quantity(comptime T: type) type {
                 .div => a.value / b.value,
             };
 
-            if (dimensions.find(dim)) |existing| {
+            if (dimensions.find(dim.*)) |existing| {
                 dim.deinit();
 
                 return .{

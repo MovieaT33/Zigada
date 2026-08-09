@@ -27,7 +27,7 @@ pub const Dimensions = struct {
 
     pub fn find(
         self: *const Self,
-        dimension: *const Dimension,
+        dimension: Dimension,
     ) ?*Dimension {
         for (self.list.items) |existing| {
             if (existing.eql(dimension))
@@ -43,7 +43,7 @@ pub const Dimensions = struct {
         ignore_duplicate: bool,
     ) Allocator.Error!void {
         if (!ignore_duplicate) {
-            if (self.find(dimension)) |_|
+            if (self.find(dimension.*)) |_|
                 return;
         }
 

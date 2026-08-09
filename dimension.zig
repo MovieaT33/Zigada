@@ -84,7 +84,7 @@ pub const Dimension = struct { // TODO: add methods (mul, div)
         return cloned;
     }
 
-    fn factorsEql(a: *const Self, b: *const Self, side: Side) bool {
+    fn factorsEql(a: Self, b: Self, side: Side) bool {
         const a_factors = switch (side) {
             .numerator => a.numerator.items,
             .denominator => a.denominator.items,
@@ -117,7 +117,7 @@ pub const Dimension = struct { // TODO: add methods (mul, div)
         return true;
     }
 
-    pub fn eql(a: *const Self, b: *const Self) bool {
+    pub fn eql(a: Self, b: Self) bool {
         const a_numerator_len = a.numerator.items.len;
         const b_numerator_len = b.numerator.items.len;
 
