@@ -1,0 +1,218 @@
+const std = @import("std");
+const Allocator = std.mem.Allocator;
+
+const UnitFactor = @import("unit_factor.zig").UnitFactor;
+
+pub const Dimension = struct {
+    const Self = @This();
+
+    const Side = enum {
+        numerator,
+        denominator,
+    };
+
+    numerator: std.ArrayList(UnitFactor),
+    denominator: std.ArrayList(UnitFactor),
+    allocator: *Allocator,
+
+    pub fn init(allocator: *Allocator) Self {
+        return .{
+            .numerator = .empty,
+            .denominator = .empty,
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        const allocator = self.allocator.*;
+
+        self.numerator.deinit(allocator);
+        self.denominator.deinit(allocator);
+    }
+
+    pub fn add(
+        self: *Dimension,
+        factor: UnitFactor,
+        side: Side,
+    ) Allocator.Error!void {
+        const list = switch (side) {
+            .numerator => &self.numerator,
+            .denominator => &self.denominator,
+        };
+
+        for (list.items) |*existing| {
+            if (std.mem.eql(u8, existing.name, factor.name)) {
+                existing.power += factor.power;
+                return;
+            }
+        }
+
+        try list.append(self.allocator.*, factor);
+    }
+
+    pub fn clone(self: *const Self) Allocator.Error!Self {
+        var dimension: Self = .init(self.allocator);
+        errdefer dimension.deinit();
+
+        const allocator = self.allocator.*;
+
+        try dimension.numerator.appendSlice(
+            allocator,
+            self.numerator.items,
+        );
+
+        try dimension.denominator.appendSlice(
+            allocator,
+            self.denominator.items,
+        );
+
+        return dimension;
+    }
+
+    fn factorsEql(a: *const Self, b: *const Self, side: Side) bool {
+        const a_factors = switch (side) {
+            .numerator => a.numerator.items,
+            .denominator => a.denominator.items,
+        };
+
+        const b_factors = switch (side) {
+            .numerator => b.numerator.items,
+            .denominator => b.denominator.items,
+        };
+
+        // Check every factor from `a`.
+        for (a_factors) |factor| {
+            var found = false;
+
+            // Search for the same factor in `b`.
+            for (b_factors) |other| {
+                if (std.mem.eql(u8, factor.name, other.name) and
+                    factor.power == other.power)
+                {
+                    // Matching name and power were found.
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found)
+                return false;
+        }
+
+        return true;
+    }
+
+    pub fn eql(a: *const Self, b: *const Self) bool {
+        const a_numerator_len = a.numerator.items.len;
+        const b_numerator_len = b.numerator.items.len;
+
+        const a_denominator_len = a.denominator.items.len;
+        const b_denominator_len = b.denominator.items.len;
+
+        if (a_numerator_len != b_numerator_len)
+            return false;
+
+        if (a_denominator_len != b_denominator_len)
+            return false;
+
+        if (a_numerator_len == 0 and a_denominator_len == 0)
+            return true;
+
+        return factorsEql(a, b, .numerator) and
+            factorsEql(a, b, .denominator);
+    }
+
+    fn appendFactor(
+        self: *const Self,
+        bytes: *std.ArrayList(u8),
+        factor: UnitFactor,
+    ) !void {
+        const allocator = self.allocator.*;
+
+        // Append unit name.
+        try bytes.appendSlice(allocator, factor.name);
+
+        // Append power if it is not 1.
+        if (factor.power != 1) {
+            var buffer: [11]u8 = undefined; // ^4_294_967_295 (11 bytes)
+
+            const power = try std.fmt.bufPrint(
+                &buffer,
+                "^{}",
+                .{factor.power},
+            );
+
+            try bytes.appendSlice(allocator, power);
+        }
+    }
+
+    fn appendFactors(
+        self: *const Self,
+        bytes: *std.ArrayList(u8),
+        factors: []const UnitFactor,
+    ) !void {
+        const allocator = self.allocator.*;
+
+        for (factors, 0..) |factor, i| {
+            // Separate factors with '*'.
+            if (i != 0)
+                try bytes.append(allocator, '*');
+
+            // Append current factor.
+            try self.appendFactor(
+                bytes,
+                factor,
+            );
+        }
+    }
+
+    pub fn toBytes(self: *const Self) !std.ArrayList(u8) {
+        const allocator = self.allocator.*;
+
+        var bytes: std.ArrayList(u8) = .empty;
+        errdefer bytes.deinit(allocator);
+
+        // Append numerator.
+        try self.appendFactors(
+            &bytes,
+            self.numerator.items,
+        );
+
+        // Append denominator.
+        const denominator_len = self.denominator.items.len;
+        if (denominator_len > 0) {
+            try bytes.append(allocator, '/');
+
+            // Use parentheses for multiple denominator factors.
+            const use_parentheses = denominator_len > 1;
+            if (use_parentheses)
+                try bytes.append(allocator, '(');
+
+            try self.appendFactors(
+                &bytes,
+                self.denominator.items,
+            );
+
+            if (use_parentheses)
+                try bytes.append(allocator, ')');
+        }
+
+        return bytes;
+    }
+
+    pub fn show(self: *const Self, io: *const std.Io) !void {
+        const allocator = self.allocator.*;
+
+        var bytes = try self.toBytes();
+        defer bytes.deinit(allocator);
+
+        try bytes.append(allocator, '\n');
+
+        var stdout = std.Io.File.stdout();
+        try stdout.writePositionalAll(
+            io.*,
+            bytes.items,
+            0,
+        );
+    }
+};
