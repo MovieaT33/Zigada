@@ -80,7 +80,7 @@ pub fn main(init: std.process.Init) !void {
         &dims,
     );
 
-    var dv = try Q32.sub(&v2, &v1);
+    var dv = Q32.sub(&v2, &v1);
 
     var a = try Q32.operate(
         &dv,

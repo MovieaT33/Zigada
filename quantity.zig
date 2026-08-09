@@ -2,10 +2,6 @@ const std = @import("std");
 const Dimension = @import("dimension.zig").Dimension;
 const Dimensions = @import("dimensions.zig").Dimensions;
 
-pub const Error = error{
-    DimensionMismatch,
-};
-
 pub fn Quantity(comptime T: type) type {
     return struct {
         const Self = @This();
@@ -38,18 +34,16 @@ pub fn Quantity(comptime T: type) type {
                 .{self.value},
             );
 
-            try stdout.writePositionalAll(
-                io.*,
-                value,
-                0,
-            );
+            try stdout.writePositionalAll(io.*, value, 0);
 
-            try self.dim.*.show(io);
+            try self.dim.*.showUnits(io);
+
+            try stdout.writePositionalAll(io.*, "\n", 0);
         }
 
-        pub fn add(a: *const Self, b: *const Self) Error!Self {
+        pub fn add(a: *const Self, b: *const Self) Self {
             if (!a.dim.*.eql(&b.dim.*))
-                return error.DimensionMismatch;
+                unreachable;
 
             return .{
                 .value = a.value + b.value,
@@ -57,9 +51,9 @@ pub fn Quantity(comptime T: type) type {
             };
         }
 
-        pub fn sub(a: *const Self, b: *const Self) Error!Self {
+        pub fn sub(a: *const Self, b: *const Self) Self {
             if (!a.dim.*.eql(&b.dim.*))
-                return error.DimensionMismatch;
+                unreachable;
 
             return .{
                 .value = a.value - b.value,

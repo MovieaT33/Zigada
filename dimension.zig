@@ -38,6 +38,7 @@ pub const Dimension = struct { // TODO: add methods (mul, div)
 
         self.numerator.deinit(allocator);
         self.denominator.deinit(allocator);
+
         allocator.destroy(self);
     }
 
@@ -65,22 +66,22 @@ pub const Dimension = struct { // TODO: add methods (mul, div)
         self: *const Self,
         name: ?[]const u8,
     ) Allocator.Error!*Self {
-        const dimension = try Self.init(name, self.allocator);
-        errdefer dimension.deinit();
+        const cloned = try Self.init(name, self.allocator);
+        errdefer cloned.deinit();
 
         const allocator = self.allocator.*;
 
-        try dimension.numerator.appendSlice(
+        try cloned.numerator.appendSlice(
             allocator,
             self.numerator.items,
         );
 
-        try dimension.denominator.appendSlice(
+        try cloned.denominator.appendSlice(
             allocator,
             self.denominator.items,
         );
 
-        return dimension;
+        return cloned;
     }
 
     fn factorsEql(a: *const Self, b: *const Self, side: Side) bool {
@@ -214,34 +215,32 @@ pub const Dimension = struct { // TODO: add methods (mul, div)
         return bytes;
     }
 
-    pub fn show(self: *const Self, io: *const std.Io) !void {
-        var stdout = std.Io.File.stdout();
-
-        if (self.name) |name| {
-            try stdout.writePositionalAll(
-                io.*,
-                name,
-                0,
-            );
-
-            try stdout.writePositionalAll(
-                io.*,
-                ": ",
-                0,
-            );
-        }
-
+    pub fn showUnits(self: *const Self, io: *const std.Io) !void {
         const allocator = self.allocator.*;
 
         var bytes = try self.toBytes();
         defer bytes.deinit(allocator);
 
-        try bytes.append(allocator, '\n');
+        var stdout = std.Io.File.stdout();
 
         try stdout.writePositionalAll(
             io.*,
             bytes.items,
             0,
         );
+    }
+
+    pub fn show(self: *const Self, io: *const std.Io) !void {
+        var stdout = std.Io.File.stdout();
+
+        if (self.name) |name| {
+            try stdout.writePositionalAll(io.*, "[", 0);
+            try stdout.writePositionalAll(io.*, name, 0);
+            try stdout.writePositionalAll(io.*, "] = ", 0);
+        }
+
+        try self.showUnits(io);
+
+        try stdout.writePositionalAll(io.*, "\n", 0);
     }
 };
