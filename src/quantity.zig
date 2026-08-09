@@ -17,7 +17,7 @@ pub fn Quantity(comptime T: type) type {
             };
         }
 
-        pub fn showValue(
+        pub fn writeValue(
             self: *const Self,
             buffer: []u8,
             io: *const std.Io,
@@ -33,22 +33,22 @@ pub fn Quantity(comptime T: type) type {
             try stdout.writePositionalAll(io.*, value, 0);
         }
 
-        pub fn show(
+        pub fn write(
             self: *const Self,
             buffer: []u8,
             io: *const std.Io,
         ) !void {
             const stdout = std.Io.File.stdout();
 
-            try self.showValue(buffer, io);
+            try self.writeValue(buffer, io);
 
-            try self.dim.*.showUnits(io);
+            try self.dim.writeUnits(io);
 
             try stdout.writePositionalAll(io.*, "\n", 0);
         }
 
         pub fn add(a: Self, b: Self) Self {
-            if (!a.dim.eql(b.dim))
+            if (!a.dim.eql(b.dim.*))
                 unreachable;
 
             return .{
@@ -58,7 +58,7 @@ pub fn Quantity(comptime T: type) type {
         }
 
         pub fn sub(a: Self, b: Self) Self {
-            if (!a.dim.eql(b.dim.*))
+            if (!a.dim.equal(b.dim.*))
                 unreachable;
 
             return .{
@@ -81,22 +81,23 @@ pub fn Quantity(comptime T: type) type {
             };
         }
 
-        pub fn operate(
+        pub fn combine(
             a: Self,
             b: Self,
             comptime operation: Dimension.Operation,
-            new_name: ?[]const u8,
+            name: ?[]const u8,
             dimensions: *Dimensions,
             comptime cross_cancellation: bool,
         ) !Self {
-            const dim = try Dimension.operate(
+            const dim = try Dimension.combine(
                 a.dim,
                 b.dim,
                 operation,
-                new_name,
+                name,
                 cross_cancellation,
             );
-            const calculated_value = switch (operation) {
+
+            const value = switch (operation) {
                 .mul => a.value * b.value,
                 .div => a.value / b.value,
             };
@@ -105,15 +106,15 @@ pub fn Quantity(comptime T: type) type {
                 dim.deinit();
 
                 return .{
-                    .value = calculated_value,
+                    .value = value,
                     .dim = existing,
                 };
             }
 
-            try dimensions.add(dim, true);
+            try dimensions.append(dim);
 
             return .{
-                .value = calculated_value,
+                .value = value,
                 .dim = dim,
             };
         }
