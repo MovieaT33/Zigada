@@ -88,6 +88,8 @@ pub fn Quantity(comptime T: type) type {
             };
         }
 
+        // TODO: add cross-cancellation
+
         pub fn mul(a: *const Self, b: *const Self) !Self {
             var dim = try a.dim.clone();
             errdefer dim.deinit();

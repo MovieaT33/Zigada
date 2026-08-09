@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const Dimension = @import("dimension.zig").Dimension;
+const Dimensions = @import("dimensions.zig").Dimensions;
 const Quantity = @import("quantity.zig").Quantity;
 
 pub fn main(init: std.process.Init) !void {
@@ -15,14 +16,19 @@ pub fn main(init: std.process.Init) !void {
     var allocator = gpa.allocator();
 
     // Initialize dimensions.
+    var dims = Dimensions.init(&allocator);
+    defer {
+        dims.show(io) catch unreachable;
+        dims.deinit();
+    }
+
     var kilograms = Dimension.init(&allocator);
-    defer kilograms.deinit();
-
     var meters = Dimension.init(&allocator);
-    defer meters.deinit();
-
     var seconds = Dimension.init(&allocator);
-    defer seconds.deinit();
+
+    _ = try dims.addDimension(&kilograms, true);
+    _ = try dims.addDimension(&meters, true);
+    _ = try dims.addDimension(&seconds, true);
 
     // Add unit factors to dimensions.
     try kilograms.add(

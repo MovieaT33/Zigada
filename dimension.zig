@@ -11,6 +11,7 @@ pub const Dimension = struct { // TODO: add methods (mul, div)
         denominator,
     };
 
+    // TODO: add name
     numerator: std.ArrayList(UnitFactor),
     denominator: std.ArrayList(UnitFactor),
     allocator: *Allocator,
