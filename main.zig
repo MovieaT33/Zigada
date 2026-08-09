@@ -58,25 +58,25 @@ pub fn main(init: std.process.Init) !void {
     const s2 = Q32.init(2, meters);
 
     var v1 = try Q32.div(&d1, &t1);
-    defer v1.dimension.deinit();
+    defer v1.dim.deinit();
 
     var v2 = try Q32.div(&d2, &t2);
-    defer v2.dimension.deinit();
+    defer v2.dim.deinit();
 
     var dv = try Q32.sub(&v2, &v1);
 
     var a = try Q32.div(&dv, &t);
-    defer a.dimension.deinit();
+    defer a.dim.deinit();
 
     var f = try Q32.mul(&m, &a);
-    defer f.dimension.deinit();
+    defer f.dim.deinit();
     try f.show("force", &buffer, io);
 
     var s = try Q32.mul(&s1, &s2);
-    defer s.dimension.deinit();
+    defer s.dim.deinit();
     try s.show("square", &buffer, io);
 
     var p = try Q32.div(&f, &s);
-    defer p.dimension.deinit();
+    defer p.dim.deinit();
     try p.show("pressure", &buffer, io);
 }

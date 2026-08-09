@@ -10,12 +10,12 @@ pub fn Quantity(comptime T: type) type {
         const Self = @This();
 
         value: T,
-        dimension: Dimension, // TODO: too long
+        dim: Dimension,
 
         pub fn init(value: T, dimension: Dimension) Self {
             return .{
                 .value = value,
-                .dimension = dimension,
+                .dim = dimension,
             };
         }
 
@@ -51,72 +51,72 @@ pub fn Quantity(comptime T: type) type {
                 0,
             );
 
-            try self.dimension.show(io);
+            try self.dim.show(io);
         }
 
         pub fn add(a: *const Self, b: *const Self) Error!Self {
-            if (!a.dimension.eql(&b.dimension))
+            if (!a.dim.eql(&b.dim))
                 return error.DimensionMismatch;
 
             return .{
                 .value = a.value + b.value,
-                .dimension = a.dimension,
+                .dim = a.dim,
             };
         }
 
         pub fn sub(a: *const Self, b: *const Self) Error!Self {
-            if (!a.dimension.eql(&b.dimension))
+            if (!a.dim.eql(&b.dim))
                 return error.DimensionMismatch;
 
             return .{
                 .value = a.value - b.value,
-                .dimension = a.dimension,
+                .dim = a.dim,
             };
         }
 
         pub fn scale(a: *const Self, b: T) Self {
             return .{
                 .value = a.value * b,
-                .dimension = a.dimension,
+                .dim = a.dim,
             };
         }
 
         pub fn unscale(a: *const Self, b: T) Self {
             return .{
                 .value = a.value / b,
-                .dimension = a.dimension,
+                .dim = a.dim,
             };
         }
 
         pub fn mul(a: *const Self, b: *const Self) !Self {
-            var dimension = try a.dimension.clone();
-            errdefer dimension.deinit();
+            var dim = try a.dim.clone();
+            errdefer dim.deinit();
 
-            for (b.dimension.numerator.items) |factor|
-                try dimension.add(factor, .numerator);
+            for (b.dim.numerator.items) |factor|
+                try dim.add(factor, .numerator);
 
-            for (b.dimension.denominator.items) |factor|
-                try dimension.add(factor, .denominator);
+            for (b.dim.denominator.items) |factor|
+                try dim.add(factor, .denominator);
 
             return .{
                 .value = a.value * b.value,
-                .dimension = dimension,
+                .dim = dim,
             };
         }
 
         pub fn div(a: *const Self, b: *const Self) !Self {
-            var dimension = try a.dimension.clone();
+            var dimension = try a.dim.clone();
             errdefer dimension.deinit();
 
-            for (b.dimension.numerator.items) |factor|
+            for (b.dim.numerator.items) |factor|
                 try dimension.add(factor, .denominator);
 
-            for (b.dimension.denominator.items) |factor|
+            for (b.dim.denominator.items) |factor|
                 try dimension.add(factor, .numerator);
 
             return .{
                 .value = a.value / b.value,
-                .dimension = dimension,
+                .dim = dimension,
             };
         }
     };
