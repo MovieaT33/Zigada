@@ -15,34 +15,65 @@ pub fn main(init: std.process.Init) !void {
     var allocator = gpa.allocator();
 
     // Initialize dimensions.
-    var Meters = Dimension.init(&allocator);
-    defer Meters.deinit();
+    var kilograms = Dimension.init(&allocator);
+    defer kilograms.deinit();
 
-    var Kilograms = Dimension.init(&allocator);
-    defer Kilograms.deinit();
+    var meters = Dimension.init(&allocator);
+    defer meters.deinit();
+
+    var seconds = Dimension.init(&allocator);
+    defer seconds.deinit();
 
     // Add unit factors to dimensions.
-    try Meters.add(
-        .{ .name = "m", .power = 1 },
-        .numerator,
-    );
-
-    try Kilograms.add(
+    try kilograms.add(
         .{ .name = "kg", .power = 1 },
         .numerator,
     );
 
+    try meters.add(
+        .{ .name = "m", .power = 1 },
+        .numerator,
+    );
+
+    try seconds.add(
+        .{ .name = "s", .power = 1 },
+        .numerator,
+    );
+
     // Create a quantity type.
-    const F32 = Quantity(f32);
+    const Q32 = Quantity(f32);
 
-    var side = F32.init(10, Meters);
-    try side.show(io);
+    // Example:
+    var m = Q32.init(10, kilograms);
+    const d1 = Q32.init(10, meters);
+    const t1 = Q32.init(1, seconds);
+    const d2 = Q32.init(30, meters);
+    const t2 = Q32.init(1, seconds);
+    var t = Q32.init(5, seconds);
 
-    var squared_side = try F32.mul(&side, &side);
-    defer squared_side.dimension.deinit();
-    try squared_side.show(io);
+    const s1 = Q32.init(2, meters);
+    const s2 = Q32.init(2, meters);
 
-    var volume = try F32.mul(&squared_side, &side);
-    defer volume.dimension.deinit();
-    try volume.show(io);
+    var v1 = try Q32.div(&d1, &t1);
+    defer v1.dimension.deinit();
+
+    var v2 = try Q32.div(&d2, &t2);
+    defer v2.dimension.deinit();
+
+    var dv = try Q32.sub(&v2, &v1);
+
+    var a = try Q32.div(&dv, &t);
+    defer a.dimension.deinit();
+
+    var f = try Q32.mul(&m, &a);
+    defer f.dimension.deinit();
+    try f.show(io);
+
+    var s = try Q32.mul(&s1, &s2);
+    defer s.dimension.deinit();
+    try s.show(io);
+
+    var p = try Q32.div(&f, &s);
+    defer p.dimension.deinit();
+    try p.show(io);
 }

@@ -10,7 +10,7 @@ pub fn Quantity(comptime T: type) type {
         const Self = @This();
 
         value: T,
-        dimension: Dimension,
+        dimension: Dimension, // TODO: too long
 
         pub fn init(value: T, dimension: Dimension) Self {
             return .{
@@ -19,7 +19,7 @@ pub fn Quantity(comptime T: type) type {
             };
         }
 
-        pub fn show(self: *Self, io: *const std.Io) !void {
+        pub fn show(self: *Self, io: *const std.Io) !void { // TODO: add `label`
             const stdout = std.Io.File.stdout();
 
             var buffer: [32]u8 = undefined;

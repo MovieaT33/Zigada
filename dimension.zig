@@ -3,7 +3,7 @@ const Allocator = std.mem.Allocator;
 
 const UnitFactor = @import("unit_factor.zig").UnitFactor;
 
-pub const Dimension = struct {
+pub const Dimension = struct { // TODO: add methods (mul, div)
     const Self = @This();
 
     const Side = enum {
