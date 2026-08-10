@@ -2,4 +2,4 @@
 - Use `QuantityContext`
 - Use custom structure for `Quantity`
 - Add `Rational`
-- Add physics.zig (kinematics, statics, mechanics )
+- Add physics.zig (kinematics, statics, mechanics)
