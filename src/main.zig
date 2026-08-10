@@ -1,16 +1,16 @@
 const std = @import("std");
 
 const config = @import("config.zig");
-const NumericWrapper = @import("numeric_wrapper.zig").NumericWrapper;
+const NumericWrapper = @import("numeric/numeric_wrapper.zig").NumericWrapper;
+const Rational = @import("numeric/rational.zig").Rational;
 const Quantity = @import("quantity.zig").Quantity;
-const SI = @import("si.zig").SI;
-const UnitExpression = @import("unit_expression.zig").UnitExpression;
-const UnitRegistry = @import("unit_registry.zig").UnitRegistry;
+const SI = @import("unit/si.zig").SI;
+const UnitExpression = @import("unit/unit_expression.zig").UnitExpression;
+const UnitRegistry = @import("unit/unit_registry.zig").UnitRegistry;
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
 
-    // Initialize GPA
     var gpa = std.heap.DebugAllocator(.{
         .safety = true,
     }){};
@@ -18,21 +18,19 @@ pub fn main(init: std.process.Init) !void {
 
     const allocator = gpa.allocator();
 
-    // Initialize unit registry
-    var registry = UnitRegistry.init(allocator);
+    var unit_registry = UnitRegistry.init(allocator);
     defer {
         var stdout = std.Io.File.stdout();
         stdout.writePositionalAll(io, "\n", 0) catch unreachable;
 
-        registry.write(&io) catch unreachable;
+        unit_registry.write(&io) catch unreachable;
 
-        registry.deinit();
+        unit_registry.deinit();
     }
 
-    // Create SI
     const si = try SI.create(allocator);
+    try si.adopt(&unit_registry);
 
-    // Initialize complex unit expressions
     const velocity = try UnitExpression.combine(
         si.meter,
         si.second,
@@ -40,57 +38,75 @@ pub fn main(init: std.process.Init) !void {
         "velocity",
         false,
     );
+    try unit_registry.adopt(velocity, true);
 
-    // Adopt expressions to registry
-    try si.adopt(&registry);
-    try registry.adopt(velocity, true);
+    // const Q = Quantity(NumericWrapper(f32));
+    const Q = Quantity(Rational);
+    Q.registry = &unit_registry;
 
-    // Create a quantity type
-    const Q32 = Quantity(NumericWrapper(f32));
+    // const mass = Q.init(Q.Type.init(5), si.kilogram);
+    // const velocity_1 = Q.init(Q.Type.init(10), velocity);
+    // const velocity_2 = Q.init(Q.Type.init(30), velocity);
+    // const delta_time = Q.init(Q.Type.init(5), si.second);
+    // const side = Q.init(Q.Type.init(2), si.meter);
 
-    // Example:
-    var print_buffer: [config.print_buffer_size]u8 = undefined;
+    var m = try Q.Type.init(5, 1, allocator);
+    defer m.deinit();
+    var v1 = try Q.Type.init(10, 1, allocator);
+    defer v1.deinit();
+    var v2 = try Q.Type.init(30, 1, allocator);
+    defer v2.deinit();
+    var dt = try Q.Type.init(5, 1, allocator);
+    defer dt.deinit();
+    var s = try Q.Type.init(2, 1, allocator);
+    defer s.deinit();
 
-    const mass = Q32.init(5, si.kilogram);
-    const velocity_1 = Q32.init(10, velocity);
-    const velocity_2 = Q32.init(30, velocity);
-    const delta_time = Q32.init(5, si.second);
-    const side = Q32.init(2, si.meter);
+    const mass = Q.init(m, si.kilogram);
+    const velocity_1 = Q.init(v1, velocity);
+    const velocity_2 = Q.init(v2, velocity);
+    const delta_time = Q.init(dt, si.second);
+    const side = Q.init(s, si.meter);
 
-    const delta_velocity = try Q32.sub(velocity_2, velocity_1);
+    // var print_buffer: [config.print_buffer_size]u8 = undefined;
 
-    const acceleration = try Q32.div(
+    var delta_velocity = try Q.sub(velocity_2, velocity_1);
+    defer delta_velocity.deinit();
+
+    var acceleration = try Q.div(
         delta_velocity,
         delta_time,
         "acceleration",
-        &registry,
         false,
     );
+    defer acceleration.deinit();
 
-    var force = try Q32.mul(
+    var force = try Q.mul(
         mass,
         acceleration,
         "force",
-        &registry,
         false,
     );
-    try force.write(&print_buffer, &io);
+    defer force.deinit();
+    // try force.write(&print_buffer, &io);
+    try force.write(&io, null);
 
-    var square = try Q32.mul(
+    var square = try Q.mul(
         side,
         side,
         "square",
-        &registry,
         false,
     );
-    try square.write(&print_buffer, &io);
+    defer square.deinit();
+    // try square.write(&print_buffer, &io);
+    try square.write(&io, null);
 
-    var pressure = try Q32.div(
+    var pressure = try Q.div(
         force,
         square,
         "pressure",
-        &registry,
         true,
     );
-    try pressure.write(&print_buffer, &io);
+    defer pressure.deinit();
+    // try pressure.write(&print_buffer, &io);
+    try pressure.write(&io, null);
 }

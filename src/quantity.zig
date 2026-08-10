@@ -1,7 +1,7 @@
 const std = @import("std");
 
-const UnitExpression = @import("unit_expression.zig").UnitExpression;
-const UnitRegistry = @import("unit_registry.zig").UnitRegistry;
+const UnitExpression = @import("unit/unit_expression.zig").UnitExpression;
+const UnitRegistry = @import("unit/unit_registry.zig").UnitRegistry;
 
 pub const Error = error{
     UnitMismatch,
@@ -10,6 +10,10 @@ pub const Error = error{
 pub fn Quantity(comptime T: type) type {
     return struct {
         const Self = @This();
+
+        pub const Type = T;
+
+        pub var registry: *UnitRegistry = undefined;
 
         value: T.Type,
         expression: *UnitExpression,
@@ -21,36 +25,40 @@ pub fn Quantity(comptime T: type) type {
             };
         }
 
-        pub fn add(a: Self, b: Self) Error!Self {
+        pub fn deinit(self: *Self) void {
+            T.deinit(&self.value);
+        }
+
+        pub fn add(a: Self, b: Self) !Self {
             if (!a.expression.eql(b.expression.*))
                 return error.UnitMismatch;
 
             return .{
-                .value = T.add(a.value, b.value),
+                .value = try T.add(a.value, b.value),
                 .expression = a.expression,
             };
         }
 
-        pub fn sub(a: Self, b: Self) Error!Self {
+        pub fn sub(a: Self, b: Self) !Self {
             if (!a.expression.eql(b.expression.*))
                 return error.UnitMismatch;
 
             return .{
-                .value = T.sub(a.value, b.value),
+                .value = try T.sub(a.value, b.value),
                 .expression = a.expression,
             };
         }
 
-        pub fn scale(a: Self, b: T) Self {
+        pub fn scale(a: Self, b: T.Type) !Self {
             return .{
-                .value = T.mul(a.value, b),
+                .value = try T.mul(a.value, b),
                 .expression = a.expression,
             };
         }
 
-        pub fn unscale(a: Self, b: T) Self {
+        pub fn unscale(a: Self, b: T.Type) !Self {
             return .{
-                .value = T.div(a.value, b),
+                .value = try T.div(a.value, b),
                 .expression = a.expression,
             };
         }
@@ -58,22 +66,21 @@ pub fn Quantity(comptime T: type) type {
         pub fn combine(
             a: Self,
             b: Self,
-            comptime operation: UnitExpression.Operation,
+            comptime op: UnitExpression.Operation,
             name: ?[]const u8,
-            registry: *UnitRegistry,
             comptime cross_cancellation: bool,
         ) !Self {
             const expression = try UnitExpression.combine(
                 a.expression,
                 b.expression,
-                operation,
+                op,
                 name,
                 cross_cancellation,
             );
 
-            const value = switch (operation) {
-                .mul => T.mul(a.value, b.value),
-                .div => T.div(a.value, b.value),
+            const value = switch (op) {
+                .mul => try T.mul(a.value, b.value),
+                .div => try T.div(a.value, b.value),
             };
 
             if (registry.find(expression.*)) |existing| {
@@ -97,7 +104,6 @@ pub fn Quantity(comptime T: type) type {
             a: Self,
             b: Self,
             name: ?[]const u8,
-            registry: *UnitRegistry,
             comptime cross_cancellation: bool,
         ) !Self {
             return combine(
@@ -105,7 +111,6 @@ pub fn Quantity(comptime T: type) type {
                 b,
                 .mul,
                 name,
-                registry,
                 cross_cancellation,
             );
         }
@@ -114,7 +119,6 @@ pub fn Quantity(comptime T: type) type {
             a: Self,
             b: Self,
             name: ?[]const u8,
-            registry: *UnitRegistry,
             comptime cross_cancellation: bool,
         ) !Self {
             return combine(
@@ -122,35 +126,24 @@ pub fn Quantity(comptime T: type) type {
                 b,
                 .div,
                 name,
-                registry,
                 cross_cancellation,
             );
         }
 
-        pub fn writeValue(
-            self: *const Self,
-            text: []u8,
-            io: *const std.Io,
-        ) !void {
-            const stdout = std.Io.File.stdout();
-
-            const value = try std.fmt.bufPrint(
-                text,
-                "{} ",
-                .{self.value},
-            );
-
-            try stdout.writePositionalAll(io.*, value, 0);
-        }
-
         pub fn write(
             self: *const Self,
-            text: []u8,
             io: *const std.Io,
+            buffer: ?[]u8,
         ) !void {
             const stdout = std.Io.File.stdout();
 
-            try self.writeValue(text, io);
+            if (buffer) |_| {
+                try self.value.writeValue(io, buffer.?);
+            } else {
+                try self.value.writeValue(io, undefined);
+            }
+
+            try stdout.writePositionalAll(io.*, " ", 0);
 
             try self.expression.writeUnits(io);
 

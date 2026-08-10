@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const config = @import("config.zig");
+const config = @import("../config.zig");
 
 const Allocator = std.mem.Allocator;
 

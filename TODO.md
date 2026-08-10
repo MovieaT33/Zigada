@@ -1,4 +1,3 @@
-- Add `Rational`
 - Limits in `UnitExpresison`
-- Use `QuantityContext`
+- Add `rational_registry.zig`
 - Add physics.zig (kinematics, statics, mechanics)
