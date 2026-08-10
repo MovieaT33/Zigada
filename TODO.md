@@ -1,5 +1,4 @@
+- Add `Rational`
 - Limits in `UnitExpresison`
 - Use `QuantityContext`
-- Use custom structure for `Quantity`
-- Add `Rational`
 - Add physics.zig (kinematics, statics, mechanics)

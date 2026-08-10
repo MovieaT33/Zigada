@@ -310,9 +310,9 @@ pub const UnitExpression = struct {
 
         try text.append(self.allocator, '/');
 
-        const use_parentheses = self.denominator.items.len > 1;
+        const parenthesize = self.denominator.items.len > 1;
 
-        if (use_parentheses)
+        if (parenthesize)
             try text.append(self.allocator, '(');
 
         try UnitFactor.appendFactors(
@@ -321,7 +321,7 @@ pub const UnitExpression = struct {
             self.allocator,
         );
 
-        if (use_parentheses)
+        if (parenthesize)
             try text.append(self.allocator, ')');
     }
 };

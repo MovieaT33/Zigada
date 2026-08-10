@@ -1,5 +1,6 @@
 1. **Imports** — sort imports using `zig build fix-imports`.
-2. **Self** — use `Self` for references to the current struct type.
+2. **Self** — use Self for references to the enclosing struct type.
+3. **Self** — don't introduce `Self` solely for one-off references.
 3. **Enums** — explicitly specify the underlying integer type.
 4. **Function order** — order functions by role: lifecycle, copy/clone, queries, mutation, writers, conversion, then helpers.
 5. **Line wrapping** — wrap long constructs when needed for readability.

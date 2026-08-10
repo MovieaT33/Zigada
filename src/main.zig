@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const config = @import("config.zig");
+const NumericWrapper = @import("numeric_wrapper.zig").NumericWrapper;
 const Quantity = @import("quantity.zig").Quantity;
 const SI = @import("si.zig").SI;
 const UnitExpression = @import("unit_expression.zig").UnitExpression;
@@ -45,7 +46,7 @@ pub fn main(init: std.process.Init) !void {
     try registry.adopt(velocity, true);
 
     // Create a quantity type
-    const Q32 = Quantity(f32);
+    const Q32 = Quantity(NumericWrapper(f32));
 
     // Example:
     var print_buffer: [config.print_buffer_size]u8 = undefined;

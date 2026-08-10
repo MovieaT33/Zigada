@@ -11,10 +11,10 @@ pub fn Quantity(comptime T: type) type {
     return struct {
         const Self = @This();
 
-        value: T,
+        value: T.Type,
         expression: *UnitExpression,
 
-        pub fn init(value: T, expression: *UnitExpression) Self {
+        pub fn init(value: T.Type, expression: *UnitExpression) Self {
             return .{
                 .value = value,
                 .expression = expression,
@@ -26,7 +26,7 @@ pub fn Quantity(comptime T: type) type {
                 return error.UnitMismatch;
 
             return .{
-                .value = a.value + b.value,
+                .value = T.add(a.value, b.value),
                 .expression = a.expression,
             };
         }
@@ -36,21 +36,21 @@ pub fn Quantity(comptime T: type) type {
                 return error.UnitMismatch;
 
             return .{
-                .value = a.value - b.value,
+                .value = T.sub(a.value, b.value),
                 .expression = a.expression,
             };
         }
 
         pub fn scale(a: Self, b: T) Self {
             return .{
-                .value = a.value * b,
+                .value = T.mul(a.value, b),
                 .expression = a.expression,
             };
         }
 
         pub fn unscale(a: Self, b: T) Self {
             return .{
-                .value = a.value / b,
+                .value = T.div(a.value, b),
                 .expression = a.expression,
             };
         }
@@ -72,8 +72,8 @@ pub fn Quantity(comptime T: type) type {
             );
 
             const value = switch (operation) {
-                .mul => a.value * b.value,
-                .div => a.value / b.value,
+                .mul => T.mul(a.value, b.value),
+                .div => T.div(a.value, b.value),
             };
 
             if (registry.find(expression.*)) |existing| {
