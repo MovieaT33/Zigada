@@ -59,39 +59,35 @@ pub fn main(init: std.process.Init) !void {
 
     const delta_velocity = try Q32.sub(velocity_2, velocity_1);
 
-    const acceleration = try Q32.combine(
+    const acceleration = try Q32.div(
         delta_velocity,
         delta_time,
-        .div,
         "acceleration",
         &registry,
         false,
     );
 
-    var force = try Q32.combine(
+    var force = try Q32.mul(
         mass,
         acceleration,
-        .mul,
         "force",
         &registry,
         false,
     );
     try force.write(&print_buffer, &io);
 
-    var square = try Q32.combine(
+    var square = try Q32.mul(
         side,
         side,
-        .mul,
         "square",
         &registry,
         false,
     );
     try square.write(&print_buffer, &io);
 
-    var pressure = try Q32.combine(
+    var pressure = try Q32.div(
         force,
         square,
-        .div,
         "pressure",
         &registry,
         true,

@@ -93,6 +93,40 @@ pub fn Quantity(comptime T: type) type {
             };
         }
 
+        pub fn mul(
+            a: Self,
+            b: Self,
+            name: ?[]const u8,
+            registry: *UnitRegistry,
+            comptime cross_cancellation: bool,
+        ) !Self {
+            return combine(
+                a,
+                b,
+                .mul,
+                name,
+                registry,
+                cross_cancellation,
+            );
+        }
+
+        pub fn div(
+            a: Self,
+            b: Self,
+            name: ?[]const u8,
+            registry: *UnitRegistry,
+            comptime cross_cancellation: bool,
+        ) !Self {
+            return combine(
+                a,
+                b,
+                .div,
+                name,
+                registry,
+                cross_cancellation,
+            );
+        }
+
         pub fn writeValue(
             self: *const Self,
             text: []u8,
