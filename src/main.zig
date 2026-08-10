@@ -1,12 +1,12 @@
 const std = @import("std");
 
 const config = @import("config.zig");
-const Dimension = @import("dimension.zig").Dimension;
-const Dimensions = @import("dimensions.zig").Dimensions;
 const Quantity = @import("quantity.zig").Quantity;
+const UnitExpression = @import("unit_expression.zig").UnitExpression;
+const UnitRegistry = @import("unit_registry.zig").UnitRegistry;
 
 pub fn main(init: std.process.Init) !void {
-    const io = &init.io;
+    const io = init.io;
 
     // Initialize GPA
     var gpa = std.heap.DebugAllocator(.{
@@ -16,40 +16,40 @@ pub fn main(init: std.process.Init) !void {
 
     const allocator = gpa.allocator();
 
-    // Initialize dimensions list
-    var dims = Dimensions.init(allocator);
+    // Initialize unit registry
+    var registry = UnitRegistry.init(allocator);
     defer {
         var stdout = std.Io.File.stdout();
-        stdout.writePositionalAll(init.io, "\n", 0) catch unreachable;
+        stdout.writePositionalAll(io, "\n", 0) catch unreachable;
 
-        dims.write(io) catch unreachable;
+        registry.write(&io) catch unreachable;
 
-        dims.deinit();
+        registry.deinit();
     }
 
-    // Initialize base dimensions
-    var kilograms = try Dimension.init("mass", allocator);
-    var meters = try Dimension.init("size", allocator);
-    var seconds = try Dimension.init("time", allocator);
+    // Initialize base unit expressions
+    var kilograms = try UnitExpression.init("mass", allocator);
+    var meters = try UnitExpression.init("size", allocator);
+    var seconds = try UnitExpression.init("time", allocator);
 
-    // Add unit factors to dimensions
+    // Add unit factors to expressions
     try kilograms.addFactor(
-        .{ .name = "kg", .power = 1 },
+        .{ .unit = "kg", .power = 1 },
         .numerator,
     );
 
     try meters.addFactor(
-        .{ .name = "m", .power = 1 },
+        .{ .unit = "m", .power = 1 },
         .numerator,
     );
 
     try seconds.addFactor(
-        .{ .name = "s", .power = 1 },
+        .{ .unit = "s", .power = 1 },
         .numerator,
     );
 
-    // Initialize complex dimensions
-    const velocity = try Dimension.combine(
+    // Initialize complex unit expressions
+    const velocity = try UnitExpression.combine(
         meters,
         seconds,
         .div,
@@ -57,17 +57,17 @@ pub fn main(init: std.process.Init) !void {
         false,
     );
 
-    // Add dimensions to list
-    try dims.append(kilograms);
-    try dims.append(meters);
-    try dims.append(seconds);
-    try dims.append(velocity);
+    // Adopt expressions to list
+    try registry.adopt(kilograms);
+    try registry.adopt(meters);
+    try registry.adopt(seconds);
+    try registry.adopt(velocity);
 
     // Create a quantity type
     const Q32 = Quantity(f32);
 
     // Example:
-    var buffer: [config.print_buffer_size]u8 = undefined;
+    var print_buffer: [config.print_buffer_size]u8 = undefined;
 
     const one_second = Q32.init(1, seconds);
 
@@ -84,7 +84,7 @@ pub fn main(init: std.process.Init) !void {
         one_second,
         .div,
         null,
-        &dims,
+        &registry,
         false,
     );
 
@@ -93,18 +93,18 @@ pub fn main(init: std.process.Init) !void {
         one_second,
         .div,
         null,
-        &dims,
+        &registry,
         false,
     );
 
-    const delta_vel = Q32.sub(velocity_2, velocity_1);
+    const delta_vel = try Q32.sub(velocity_2, velocity_1);
 
     const acceleration = try Q32.combine(
         delta_vel,
         delta_time,
         .div,
         "acceleration",
-        &dims,
+        &registry,
         false,
     );
 
@@ -113,28 +113,28 @@ pub fn main(init: std.process.Init) !void {
         acceleration,
         .mul,
         "force",
-        &dims,
+        &registry,
         false,
     );
-    try force.write(&buffer, io);
+    try force.write(&print_buffer, &io);
 
     var square = try Q32.combine(
         side_1,
         side_2,
         .mul,
         "square",
-        &dims,
+        &registry,
         false,
     );
-    try square.write(&buffer, io);
+    try square.write(&print_buffer, &io);
 
     var pressure = try Q32.combine(
         force,
         square,
         .div,
         "pressure",
-        &dims,
+        &registry,
         true,
     );
-    try pressure.write(&buffer, io);
+    try pressure.write(&print_buffer, &io);
 }

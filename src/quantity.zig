@@ -1,97 +1,71 @@
 const std = @import("std");
 
-const Dimension = @import("dimension.zig").Dimension;
-const Dimensions = @import("dimensions.zig").Dimensions;
+const UnitExpression = @import("unit_expression.zig").UnitExpression;
+const UnitRegistry = @import("unit_registry.zig").UnitRegistry;
+
+pub const Error = error{
+    UnitMismatch,
+};
 
 pub fn Quantity(comptime T: type) type {
     return struct {
         const Self = @This();
 
         value: T,
-        dim: *Dimension,
+        expression: *UnitExpression,
 
-        pub fn init(value: T, dimension: *Dimension) Self {
+        pub fn init(value: T, expression: *UnitExpression) Self {
             return .{
                 .value = value,
-                .dim = dimension,
+                .expression = expression,
             };
         }
 
-        pub fn writeValue(
-            self: *const Self,
-            buffer: []u8,
-            io: *const std.Io,
-        ) !void {
-            const stdout = std.Io.File.stdout();
-
-            const value = try std.fmt.bufPrint(
-                buffer,
-                "{} ",
-                .{self.value},
-            );
-
-            try stdout.writePositionalAll(io.*, value, 0);
-        }
-
-        pub fn write(
-            self: *const Self,
-            buffer: []u8,
-            io: *const std.Io,
-        ) !void {
-            const stdout = std.Io.File.stdout();
-
-            try self.writeValue(buffer, io);
-
-            try self.dim.writeUnits(io);
-
-            try stdout.writePositionalAll(io.*, "\n", 0);
-        }
-
-        pub fn add(a: Self, b: Self) Self {
-            if (!a.dim.eql(b.dim.*))
-                unreachable;
+        pub fn add(a: Self, b: Self) Error!Self {
+            if (!a.expression.eql(b.expression.*))
+                return error.UnitMismatch;
 
             return .{
                 .value = a.value + b.value,
-                .dim = a.dim,
+                .expression = a.expression,
             };
         }
 
-        pub fn sub(a: Self, b: Self) Self {
-            if (!a.dim.equal(b.dim.*))
-                unreachable;
+        pub fn sub(a: Self, b: Self) Error!Self {
+            if (!a.expression.eql(b.expression.*))
+                return error.UnitMismatch;
 
             return .{
                 .value = a.value - b.value,
-                .dim = a.dim,
+                .expression = a.expression,
             };
         }
 
         pub fn scale(a: Self, b: T) Self {
             return .{
                 .value = a.value * b,
-                .dim = a.dim,
+                .expression = a.expression,
             };
         }
 
         pub fn unscale(a: Self, b: T) Self {
             return .{
                 .value = a.value / b,
-                .dim = a.dim,
+                .expression = a.expression,
             };
         }
 
         pub fn combine(
             a: Self,
             b: Self,
-            comptime operation: Dimension.Operation,
+            comptime operation: UnitExpression.Operation,
             name: ?[]const u8,
-            dimensions: *Dimensions,
+            registry: *UnitRegistry,
             comptime cross_cancellation: bool,
         ) !Self {
-            const dim = try Dimension.combine(
-                a.dim,
-                b.dim,
+            const expression = try UnitExpression.combine(
+                a.expression,
+                b.expression,
                 operation,
                 name,
                 cross_cancellation,
@@ -102,21 +76,51 @@ pub fn Quantity(comptime T: type) type {
                 .div => a.value / b.value,
             };
 
-            if (dimensions.find(dim.*)) |existing| {
-                dim.deinit();
+            if (registry.find(expression.*)) |existing| {
+                expression.deinit();
 
                 return .{
                     .value = value,
-                    .dim = existing,
+                    .expression = existing,
                 };
             }
 
-            try dimensions.append(dim);
+            try registry.adopt(expression);
 
             return .{
                 .value = value,
-                .dim = dim,
+                .expression = expression,
             };
+        }
+
+        pub fn writeValue(
+            self: *const Self,
+            text: []u8,
+            io: *const std.Io,
+        ) !void {
+            const stdout = std.Io.File.stdout();
+
+            const value = try std.fmt.bufPrint(
+                text,
+                "{} ",
+                .{self.value},
+            );
+
+            try stdout.writePositionalAll(io.*, value, 0);
+        }
+
+        pub fn write(
+            self: *const Self,
+            text: []u8,
+            io: *const std.Io,
+        ) !void {
+            const stdout = std.Io.File.stdout();
+
+            try self.writeValue(text, io);
+
+            try self.expression.writeUnits(io);
+
+            try stdout.writePositionalAll(io.*, "\n", 0);
         }
     };
 }
