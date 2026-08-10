@@ -2,30 +2,35 @@
 const std = @import("std");
 
 const BigInt = @import("big_int.zig").BigInt;
+const RationalRegistry = @import("rational_registry.zig").RationalRegistry;
 
 const Allocator = std.mem.Allocator;
+
+pub const Error = error{
+    MissingAllocator,
+};
 
 pub const Rational = struct {
     const Self = @This();
 
     pub const Type = Self;
 
+    pub var rational_registry: ?*RationalRegistry = undefined;
+    pub var allocator: ?Allocator = undefined;
+
     numerator: BigInt,
     denominator: BigInt,
-    allocator: Allocator,
 
-    pub fn init(
-        numerator: i64,
-        denominator: i64,
-        allocator: Allocator,
-    ) !Self {
+    pub fn init(numerator: i64, denominator: i64) !Self {
         if (denominator == 0)
             return error.DivisionByZero;
 
+        if (allocator == null)
+            return error.MissingAllocator;
+
         var self = Self{
-            .numerator = BigInt.init(allocator),
-            .denominator = BigInt.init(allocator),
-            .allocator = allocator,
+            .numerator = BigInt.init(allocator.?),
+            .denominator = BigInt.init(allocator.?),
         };
         errdefer self.deinit();
 
@@ -43,6 +48,9 @@ pub const Rational = struct {
 
         try self.normalize();
 
+        if (rational_registry) |registry|
+            try registry.adopt(self);
+
         return self;
     }
 
@@ -52,18 +60,20 @@ pub const Rational = struct {
     }
 
     fn clone(self: *const Self) !Self {
+        if (allocator == null)
+            return error.MissingAllocator;
+
         var copy = Self{
             .numerator = undefined,
             .denominator = undefined,
-            .allocator = self.allocator,
         };
         errdefer copy.deinit();
 
         copy.numerator =
-            try self.numerator.clone(self.allocator);
+            try self.numerator.clone(allocator.?);
 
         copy.denominator =
-            try self.denominator.clone(self.allocator);
+            try self.denominator.clone(allocator.?);
 
         return copy;
     }
@@ -79,42 +89,44 @@ pub const Rational = struct {
 
         self.denominator.negative = false;
 
-        // TODO: gcd(numerator, denominator).
+        // TODO: gcd(numerator, denominator)
     }
 
     pub fn add(a: Self, b: Self) !Self {
+        if (allocator == null)
+            return error.MissingAllocator;
+
         var ad = try BigInt.mul(
             &a.numerator,
             &b.denominator,
-            a.allocator,
+            allocator.?,
         );
         defer ad.deinit();
 
         var cb = try BigInt.mul(
             &b.numerator,
             &a.denominator,
-            a.allocator,
+            allocator.?,
         );
         defer cb.deinit();
 
         var numerator = try BigInt.add(
             &ad,
             &cb,
-            a.allocator,
+            allocator.?,
         );
         errdefer numerator.deinit();
 
         var denominator = try BigInt.mul(
             &a.denominator,
             &b.denominator,
-            a.allocator,
+            allocator.?,
         );
         errdefer denominator.deinit();
 
         var result = Self{
             .numerator = numerator,
             .denominator = denominator,
-            .allocator = a.allocator,
         };
 
         try result.normalize();
@@ -131,24 +143,26 @@ pub const Rational = struct {
     }
 
     pub fn mul(a: Self, b: Self) !Self {
+        if (allocator == null)
+            return error.MissingAllocator;
+
         var numerator = try BigInt.mul(
             &a.numerator,
             &b.numerator,
-            a.allocator,
+            allocator.?,
         );
         errdefer numerator.deinit();
 
         var denominator = try BigInt.mul(
             &a.denominator,
             &b.denominator,
-            a.allocator,
+            allocator.?,
         );
         errdefer denominator.deinit();
 
         var result = Self{
             .numerator = numerator,
             .denominator = denominator,
-            .allocator = a.allocator,
         };
 
         try result.normalize();
@@ -156,20 +170,23 @@ pub const Rational = struct {
     }
 
     pub fn div(a: Self, b: Self) !Self {
+        if (allocator == null)
+            return error.MissingAllocator;
+
         if (b.numerator.isZero())
             return error.DivisionByZero;
 
         var numerator = try BigInt.mul(
             &a.numerator,
             &b.denominator,
-            a.allocator,
+            allocator.?,
         );
         errdefer numerator.deinit();
 
         var denominator = try BigInt.mul(
             &a.denominator,
             &b.numerator,
-            a.allocator,
+            allocator.?,
         );
         errdefer denominator.deinit();
 
@@ -181,7 +198,6 @@ pub const Rational = struct {
         var result = Self{
             .numerator = numerator,
             .denominator = denominator,
-            .allocator = a.allocator,
         };
 
         try result.normalize();

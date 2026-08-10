@@ -1,5 +1,6 @@
 const std = @import("std");
 
+const RationalRegistry = @import("numeric/rational_registry.zig").RationalRegistry;
 const UnitExpression = @import("unit/unit_expression.zig").UnitExpression;
 const UnitRegistry = @import("unit/unit_registry.zig").UnitRegistry;
 
@@ -13,7 +14,8 @@ pub fn Quantity(comptime T: type) type {
 
         pub const Type = T;
 
-        pub var registry: *UnitRegistry = undefined;
+        pub var unit_registry: *UnitRegistry = undefined;
+        pub var rational_registry: ?*RationalRegistry = undefined;
 
         value: T.Type,
         expression: *UnitExpression,
@@ -83,7 +85,7 @@ pub fn Quantity(comptime T: type) type {
                 .div => try T.div(a.value, b.value),
             };
 
-            if (registry.find(expression.*)) |existing| {
+            if (unit_registry.find(expression.*)) |existing| {
                 expression.deinit();
 
                 return .{
@@ -92,7 +94,10 @@ pub fn Quantity(comptime T: type) type {
                 };
             }
 
-            try registry.adopt(expression, false);
+            try unit_registry.adopt(expression, false);
+
+            if (rational_registry) |registry|
+                try registry.adopt(value);
 
             return .{
                 .value = value,

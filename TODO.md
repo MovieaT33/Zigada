@@ -1,3 +1,4 @@
+- Add custom allocator
+- Add `simplify` in `Rational`
 - Limits in `UnitExpresison`
-- Add `rational_registry.zig`
 - Add physics.zig (kinematics, statics, mechanics)
