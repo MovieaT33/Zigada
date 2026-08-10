@@ -1,4 +1,4 @@
-- Add custom allocator
+- TODOs
 - Add `simplify` in `Rational`
 - Limits in `UnitExpresison`
 - Add physics.zig (kinematics, statics, mechanics)

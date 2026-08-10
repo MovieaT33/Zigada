@@ -1,6 +1,6 @@
 .{
     .name = .Zigada,
-    .version = "1.4.1",
+    .version = "1.4.2",
     .fingerprint = 0x5c350ece7e3d1728,
     .minimum_zig_version = "0.16.0",
     .dependencies = .{

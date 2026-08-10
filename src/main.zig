@@ -14,8 +14,11 @@ pub fn main(init: std.process.Init) !void {
 
     var gpa = std.heap.DebugAllocator(.{
         .safety = true,
+        .verbose_log = true,
+        .enable_memory_limit = true,
     }){};
     defer _ = gpa.deinit();
+    gpa.requested_memory_limit = 1024 * 8; // 8 KiB
 
     const allocator = gpa.allocator();
 
@@ -57,9 +60,8 @@ pub fn main(init: std.process.Init) !void {
     const delta_time = Q.init(dt, si.second);
     const side = Q.init(s, si.meter);
 
-    var delta_velocity =
+    const delta_velocity =
         try Q.sub(velocity_2, velocity_1);
-    defer delta_velocity.deinit(); // TODO: fix
 
     const acceleration =
         try Q.div(delta_velocity, delta_time, "acceleration", false);

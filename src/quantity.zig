@@ -35,8 +35,13 @@ pub fn Quantity(comptime T: type) type {
             if (!a.expression.eql(b.expression.*))
                 return error.UnitMismatch;
 
+            const value = try T.add(a.value, b.value);
+
+            if (rational_registry) |registry|
+                try registry.adopt(value);
+
             return .{
-                .value = try T.add(a.value, b.value),
+                .value = value,
                 .expression = a.expression,
             };
         }
@@ -45,22 +50,37 @@ pub fn Quantity(comptime T: type) type {
             if (!a.expression.eql(b.expression.*))
                 return error.UnitMismatch;
 
+            const value = try T.sub(a.value, b.value);
+
+            if (rational_registry) |registry|
+                try registry.adopt(value);
+
             return .{
-                .value = try T.sub(a.value, b.value),
+                .value = value,
                 .expression = a.expression,
             };
         }
 
         pub fn scale(a: Self, b: T.Type) !Self {
+            const value = try T.mul(a.value, b);
+
+            if (rational_registry) |registry|
+                try registry.adopt(value);
+
             return .{
-                .value = try T.mul(a.value, b),
+                .value = value,
                 .expression = a.expression,
             };
         }
 
         pub fn unscale(a: Self, b: T.Type) !Self {
+            const value = try T.div(a.value, b);
+
+            if (rational_registry) |registry|
+                try registry.adopt(value);
+
             return .{
-                .value = try T.div(a.value, b),
+                .value = value,
                 .expression = a.expression,
             };
         }
