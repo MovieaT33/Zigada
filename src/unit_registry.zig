@@ -48,18 +48,10 @@ pub const UnitRegistry = struct {
     pub fn adopt(
         self: *Self,
         expression: *UnitExpression,
+        comptime unique: bool,
     ) Allocator.Error!void {
-        try self.expressions.append(self.allocator, expression);
-    }
-
-    pub fn adoptUnique(
-        self: *Self,
-        expression: *UnitExpression,
-    ) Allocator.Error!void {
-        if (self.exists(expression.*))
-            return;
-
-        try self.adopt(expression);
+        if (!unique or !self.exists(expression.*))
+            try self.expressions.append(self.allocator, expression);
     }
 
     pub fn write(

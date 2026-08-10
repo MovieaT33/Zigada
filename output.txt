@@ -1,0 +1,16 @@
+20 kg*m/s^2
+4 m^2
+5 kg/(s^2*m)
+
+[time] = s
+[length] = m
+[mass] = kg
+[temperature] = K
+[electric current] = A
+[amount of substance] = mol
+[luminous intensity] = cd
+[velocity] = m/s
+[acceleration] = m/s^2
+[force] = kg*m/s^2
+[square] = m^2
+[pressure] = kg/(s^2*m)

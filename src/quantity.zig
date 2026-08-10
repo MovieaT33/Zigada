@@ -85,7 +85,7 @@ pub fn Quantity(comptime T: type) type {
                 };
             }
 
-            try registry.adopt(expression);
+            try registry.adopt(expression, false);
 
             return .{
                 .value = value,
