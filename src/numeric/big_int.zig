@@ -1,7 +1,6 @@
 // Created by ChatGPT
-const std = @import("std");
 
-const config = @import("../config.zig");
+const std = @import("std");
 
 const Allocator = std.mem.Allocator;
 
@@ -44,6 +43,12 @@ pub const BigInt = struct {
 
     pub fn isZero(self: *const BigInt) bool {
         return self.limbs.items.len == 0;
+    }
+
+    pub fn isOne(self: *const BigInt) bool {
+        return !self.negative and
+            self.limbs.items.len == 1 and
+            self.limbs.items[0] == 1;
     }
 
     pub fn normalize(self: *BigInt) void {
@@ -301,6 +306,304 @@ pub const BigInt = struct {
         return result;
     }
 
+    pub fn mod(
+        a: *const BigInt,
+        b: *const BigInt,
+        allocator: Allocator,
+    ) !BigInt {
+        if (b.isZero())
+            return error.DivisionByZero;
+
+        var divisor = try b.clone(allocator);
+        defer divisor.deinit();
+
+        divisor.negative = false;
+
+        var dividend = try a.clone(allocator);
+        defer dividend.deinit();
+
+        dividend.negative = false;
+
+        var result = BigInt.init(allocator);
+        errdefer result.deinit();
+
+        if (dividend.isZero())
+            return result;
+
+        if (cmpAbs(&dividend, &divisor) == .lt)
+            return dividend;
+
+        try result.limbs.ensureTotalCapacity(
+            allocator,
+            divisor.limbs.items.len,
+        );
+
+        var limb_index = dividend.limbs.items.len;
+
+        while (limb_index > 0) {
+            limb_index -= 1;
+
+            const limb = dividend.limbs.items[limb_index];
+
+            var bit_index: u7 = 64;
+
+            while (bit_index > 0) {
+                bit_index -= 1;
+
+                try shiftLeftOne(&result, allocator);
+
+                if (((limb >> @as(u6, @intCast(bit_index))) & 1) != 0) {
+                    try addOne(&result, allocator);
+                }
+
+                if (cmpAbs(&result, &divisor) != .lt) {
+                    subAbsInPlace(&result, &divisor);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    fn shiftLeftOne(
+        self: *BigInt,
+        allocator: Allocator,
+    ) !void {
+        if (self.isZero())
+            return;
+
+        var carry: Limb = 0;
+
+        for (self.limbs.items) |*limb| {
+            const old = limb.*;
+
+            limb.* = (old << 1) | carry;
+            carry = old >> 63;
+        }
+
+        if (carry != 0)
+            try self.limbs.append(allocator, carry);
+    }
+
+    fn addOne(
+        self: *BigInt,
+        allocator: Allocator,
+    ) !void {
+        if (self.isZero()) {
+            try self.limbs.append(allocator, 1);
+            return;
+        }
+
+        for (self.limbs.items) |*limb| {
+            const old = limb.*;
+
+            limb.* +%= 1;
+
+            if (limb.* != 0)
+                return;
+
+            _ = old;
+        }
+
+        try self.limbs.append(allocator, 1);
+    }
+
+    fn subAbsInPlace(
+        self: *BigInt,
+        other: *const BigInt,
+    ) void {
+        var borrow: Limb = 0;
+
+        for (self.limbs.items, 0..) |*limb, i| {
+            const other_limb: Limb =
+                if (i < other.limbs.items.len)
+                    other.limbs.items[i]
+                else
+                    0;
+
+            const subtrahend = @as(Wide, other_limb) + borrow;
+
+            if (@as(Wide, limb.*) >= subtrahend) {
+                limb.* = @truncate(
+                    @as(Wide, limb.*) - subtrahend,
+                );
+                borrow = 0;
+            } else {
+                limb.* = @truncate(
+                    (@as(Wide, 1) << 64) +
+                        @as(Wide, limb.*) -
+                        subtrahend,
+                );
+                borrow = 1;
+            }
+        }
+
+        self.normalize();
+    }
+
+    pub fn div(
+        a: *const BigInt,
+        b: *const BigInt,
+        allocator: Allocator,
+    ) !struct {
+        quotient: BigInt,
+        remainder: BigInt,
+    } {
+        if (b.isZero())
+            return error.DivisionByZero;
+
+        var quotient = BigInt.init(allocator);
+        errdefer quotient.deinit();
+
+        var remainder = BigInt.init(allocator);
+        errdefer remainder.deinit();
+
+        if (a.isZero()) {
+            return .{
+                .quotient = quotient,
+                .remainder = remainder,
+            };
+        }
+
+        var dividend = try a.clone(allocator);
+        defer dividend.deinit();
+        dividend.negative = false;
+
+        var divisor = try b.clone(allocator);
+        defer divisor.deinit();
+        divisor.negative = false;
+
+        if (cmpAbs(&dividend, &divisor) == .lt) {
+            remainder = try dividend.clone(allocator);
+
+            return .{
+                .quotient = quotient,
+                .remainder = remainder,
+            };
+        }
+
+        const bit_count =
+            (dividend.limbs.items.len - 1) * 64 +
+            (64 - @clz(
+                dividend.limbs.items[
+                    dividend.limbs.items.len - 1
+                ],
+            ));
+
+        try quotient.limbs.resize(
+            allocator,
+            (bit_count + 63) / 64,
+        );
+        @memset(quotient.limbs.items, 0);
+
+        var bit_index = bit_count;
+
+        while (bit_index > 0) {
+            bit_index -= 1;
+
+            try shiftLeftOne(
+                &remainder,
+                allocator,
+            );
+
+            const limb_index = bit_index / 64;
+            const bit_in_limb: u6 =
+                @intCast(bit_index % 64);
+
+            const bit =
+                (dividend.limbs.items[limb_index] >>
+                    bit_in_limb) & 1;
+
+            if (bit != 0) {
+                try addOne(
+                    &remainder,
+                    allocator,
+                );
+            }
+
+            if (cmpAbs(&remainder, &divisor) != .lt) {
+                subAbsInPlace(
+                    &remainder,
+                    &divisor,
+                );
+
+                quotient.limbs.items[limb_index] |=
+                    @as(Limb, 1) << bit_in_limb;
+            }
+        }
+
+        quotient.normalize();
+        remainder.normalize();
+
+        quotient.negative =
+            a.negative != b.negative and
+            !quotient.isZero();
+
+        remainder.negative =
+            a.negative and
+            !remainder.isZero();
+
+        return .{
+            .quotient = quotient,
+            .remainder = remainder,
+        };
+    }
+
+    pub fn divExact(
+        a: *const BigInt,
+        b: *const BigInt,
+        allocator: Allocator,
+    ) !BigInt {
+        var result = try div(
+            a,
+            b,
+            allocator,
+        );
+
+        if (!result.remainder.isZero()) {
+            result.remainder.deinit();
+            result.quotient.deinit();
+
+            return error.NotDivisible;
+        }
+
+        result.remainder.deinit();
+
+        return result.quotient;
+    }
+
+    pub fn gcd(
+        a: *const BigInt,
+        b: *const BigInt,
+        allocator: Allocator,
+    ) !BigInt {
+        var x = try a.clone(allocator);
+        errdefer x.deinit();
+
+        var y = try b.clone(allocator);
+        errdefer y.deinit();
+
+        x.negative = false;
+        y.negative = false;
+
+        while (!y.isZero()) {
+            const remainder = try mod(
+                &x,
+                &y,
+                allocator,
+            );
+
+            x.deinit();
+
+            x = y;
+            y = remainder;
+        }
+
+        y.deinit();
+
+        return x;
+    }
+
     pub fn writeValue(
         self: *const BigInt,
         io: *const std.Io,
@@ -312,7 +615,7 @@ pub const BigInt = struct {
             return;
         }
 
-        var buffer: [config.print_buffer_size]u8 = undefined;
+        var buffer: [64]u8 = undefined; // TODO: review
         var writer = std.Io.Writer.fixed(&buffer);
 
         if (self.negative)

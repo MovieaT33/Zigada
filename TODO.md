@@ -1,4 +1,3 @@
-- TODOs
-- Add `simplify` in `Rational`
+- Update `ration.zig`, `big_int.zig`
 - Limits in `UnitExpresison`
 - Add physics.zig (kinematics, statics, mechanics)

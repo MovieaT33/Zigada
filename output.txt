@@ -1,6 +1,6 @@
-100/5 kg*m/s^2
+20/1 kg*m/s^2
 4/1 m^2
-100/20 kg/(s^2*m)
+5/1 kg/(s^2*m)
 
 [time] = s
 [length] = m

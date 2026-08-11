@@ -1,3 +1,5 @@
+// Checked style
+
 const std = @import("std");
 
 const UnitExpression = @import("unit_expression.zig").UnitExpression;
@@ -7,13 +9,13 @@ const Allocator = std.mem.Allocator;
 pub const UnitRegistry = struct {
     const Self = @This();
 
-    expressions: std.ArrayList(*UnitExpression),
     allocator: Allocator,
+    expressions: std.ArrayList(*UnitExpression),
 
     pub fn init(allocator: Allocator) Self {
         return .{
-            .expressions = .empty,
             .allocator = allocator,
+            .expressions = .empty,
         };
     }
 
@@ -22,15 +24,6 @@ pub const UnitRegistry = struct {
             expression.deinit();
 
         self.expressions.deinit(self.allocator);
-    }
-
-    pub fn exists(self: *const Self, expression: UnitExpression) bool {
-        for (self.expressions.items) |existing| {
-            if (existing.eql(expression))
-                return true;
-        }
-
-        return false;
     }
 
     pub fn find(
@@ -43,6 +36,10 @@ pub const UnitRegistry = struct {
         }
 
         return null;
+    }
+
+    pub fn exists(self: *const Self, expression: UnitExpression) bool {
+        return self.find(expression) != null;
     }
 
     pub fn adopt(

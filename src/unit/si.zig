@@ -1,3 +1,5 @@
+// Checked style
+
 const std = @import("std");
 
 const UnitExpression = @import("unit_expression.zig").UnitExpression;
@@ -17,25 +19,25 @@ pub const SI = struct {
     candela: *UnitExpression,
 
     pub fn create(allocator: Allocator) Allocator.Error!Self {
-        var second = try UnitExpression.init("time", allocator);
+        var second = try UnitExpression.init(allocator, "time");
         errdefer second.deinit();
 
-        var meter = try UnitExpression.init("length", allocator);
+        var meter = try UnitExpression.init(allocator, "length");
         errdefer meter.deinit();
 
-        var kilogram = try UnitExpression.init("mass", allocator);
+        var kilogram = try UnitExpression.init(allocator, "mass");
         errdefer kilogram.deinit();
 
-        var kelvin = try UnitExpression.init("temperature", allocator);
+        var kelvin = try UnitExpression.init(allocator, "temperature");
         errdefer kelvin.deinit();
 
-        var ampere = try UnitExpression.init("electric current", allocator);
+        var ampere = try UnitExpression.init(allocator, "electric current");
         errdefer ampere.deinit();
 
-        var mole = try UnitExpression.init("amount of substance", allocator);
+        var mole = try UnitExpression.init(allocator, "amount of substance");
         errdefer mole.deinit();
 
-        var candela = try UnitExpression.init("luminous intensity", allocator);
+        var candela = try UnitExpression.init(allocator, "luminous intensity");
         errdefer candela.deinit();
 
         try second.addFactor(.{ .unit = "s", .power = 1 }, .numerator);
@@ -57,7 +59,10 @@ pub const SI = struct {
         };
     }
 
-    pub fn adopt(self: *const Self, registry: *UnitRegistry) Allocator.Error!void {
+    pub fn adopt(
+        self: *const Self,
+        registry: *UnitRegistry,
+    ) Allocator.Error!void {
         try registry.adopt(self.second, true);
         try registry.adopt(self.meter, true);
         try registry.adopt(self.kilogram, true);

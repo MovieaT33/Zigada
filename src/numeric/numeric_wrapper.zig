@@ -1,3 +1,5 @@
+// Checked style
+
 const std = @import("std");
 
 pub const Error = error{
@@ -25,6 +27,7 @@ pub fn NumericWrapper(comptime T: type) type {
 
         pub fn deinit(_: *const Self) void {}
 
+        // `!Self` is required for all arithmetic operations.
         pub fn add(a: Self, b: Self) !Self {
             return .{ .value = a.value + b.value };
         }
@@ -45,16 +48,13 @@ pub fn NumericWrapper(comptime T: type) type {
             self: *const Self,
             io: *const std.Io,
             buffer: ?[]u8,
-        ) !void {
-            if (buffer == null) return error.MissingBuffer;
+        ) Error!void {
+            if (buffer == null)
+                return error.MissingBuffer;
 
             const stdout = std.Io.File.stdout();
 
-            const value = try std.fmt.bufPrint(
-                buffer,
-                "{}",
-                .{self.value},
-            );
+            const value = try std.fmt.bufPrint(buffer, "{}", .{self.value});
 
             try stdout.writePositionalAll(io.*, value, 0);
         }

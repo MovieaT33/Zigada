@@ -1,24 +1,20 @@
 const std = @import("std");
 
-const config = @import("config.zig");
 const NumericWrapper = @import("numeric/numeric_wrapper.zig").NumericWrapper;
 const Rational = @import("numeric/rational.zig").Rational;
+const RationalRegistry = @import("numeric/rational_registry.zig").RationalRegistry;
 const Quantity = @import("quantity.zig").Quantity;
 const SI = @import("unit/si.zig").SI;
 const UnitExpression = @import("unit/unit_expression.zig").UnitExpression;
 const UnitRegistry = @import("unit/unit_registry.zig").UnitRegistry;
-const RationalRegistry = @import("numeric/rational_registry.zig").RationalRegistry;
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
 
     var gpa = std.heap.DebugAllocator(.{
         .safety = true,
-        .verbose_log = true,
-        .enable_memory_limit = true,
     }){};
     defer _ = gpa.deinit();
-    gpa.requested_memory_limit = 1024 * 8; // 8 KiB
 
     const allocator = gpa.allocator();
 

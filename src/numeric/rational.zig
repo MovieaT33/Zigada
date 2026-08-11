@@ -1,4 +1,5 @@
 // Created by ChatGPT
+
 const std = @import("std");
 
 const BigInt = @import("big_int.zig").BigInt;
@@ -79,6 +80,9 @@ pub const Rational = struct {
     }
 
     fn normalize(self: *Self) !void {
+        if (allocator == null)
+            return error.MissingAllocator;
+
         self.numerator.normalize();
         self.denominator.normalize();
 
@@ -87,9 +91,40 @@ pub const Rational = struct {
             return;
         }
 
-        self.denominator.negative = false;
+        if (self.denominator.negative) {
+            self.denominator.negate();
+            self.numerator.negate();
+        }
 
-        // TODO: gcd(numerator, denominator)
+        var divisor = try BigInt.gcd(
+            &self.numerator,
+            &self.denominator,
+            allocator.?,
+        );
+        defer divisor.deinit();
+
+        if (divisor.isOne())
+            return;
+
+        var new_numerator = try BigInt.divExact(
+            &self.numerator,
+            &divisor,
+            allocator.?,
+        );
+        errdefer new_numerator.deinit();
+
+        var new_denominator = try BigInt.divExact(
+            &self.denominator,
+            &divisor,
+            allocator.?,
+        );
+        errdefer new_denominator.deinit();
+
+        self.numerator.deinit();
+        self.denominator.deinit();
+
+        self.numerator = new_numerator;
+        self.denominator = new_denominator;
     }
 
     pub fn add(a: Self, b: Self) !Self {
