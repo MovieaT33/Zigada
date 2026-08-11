@@ -270,14 +270,14 @@ pub const Rational = struct {
             &b.denominator,
             alloc,
         );
-        errdefer numerator.deinit();
+        defer numerator.deinit();
 
         var other_numerator = try BigInt.mul(
             &b.numerator,
             &a.denominator,
             alloc,
         );
-        errdefer other_numerator.deinit();
+        defer other_numerator.deinit();
 
         other_numerator.negate();
 
@@ -394,7 +394,6 @@ pub const Rational = struct {
     pub fn writeValue(
         self: *const Self,
         io: *const std.Io,
-        _: []const u8,
     ) !void {
         try self.numerator.writeValue(io);
 

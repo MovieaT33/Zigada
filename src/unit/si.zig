@@ -1,75 +1,79 @@
 const std = @import("std");
 
 const UnitDefinition = @import("unit_definition.zig").UnitDefinition;
-const UnitExpression = @import("unit_expression.zig").UnitExpression;
 const UnitRegistry = @import("unit_registry.zig").UnitRegistry;
 
 const Allocator = std.mem.Allocator;
 
-pub fn SI(comptime N: type) type {
+pub fn SI(comptime D: type) type {
     return struct {
         const Self = @This();
 
-        second: *UnitDefinition(N),
-        meter: *UnitDefinition(N),
-        kilogram: *UnitDefinition(N),
-        kelvin: *UnitDefinition(N),
-        ampere: *UnitDefinition(N),
-        mole: *UnitDefinition(N),
-        candela: *UnitDefinition(N),
+        second: *D,
+        meter: *D,
+        kilogram: *D,
+        kelvin: *D,
+        ampere: *D,
+        mole: *D,
+        candela: *D,
 
         pub fn create(
-            allocator: Allocator,
-            non_negative: UnitDefinition(N).Constraint,
+            non_negative: D.Constraint,
         ) Allocator.Error!Self {
-            var second_expression: *UnitExpression = try .init(allocator, "time");
-            errdefer second_expression.deinit();
-
-            var meter_expression: *UnitExpression = try .init(allocator, "length");
-            errdefer meter_expression.deinit();
-
-            var kilogram_expression: *UnitExpression = try .init(allocator, "mass");
-            errdefer kilogram_expression.deinit();
-
-            var kelvin_expression: *UnitExpression = try .init(allocator, "temperature");
-            errdefer kelvin_expression.deinit();
-
-            var ampere_expression: *UnitExpression = try .init(allocator, "electric current");
-            errdefer ampere_expression.deinit();
-
-            var mole_expression: *UnitExpression = try .init(allocator, "amount of substance");
-            errdefer mole_expression.deinit();
-
-            var candela_expression: *UnitExpression = try .init(allocator, "luminous intensity");
-            errdefer candela_expression.deinit();
-
-            try second_expression.addFactor(.numerator, .{ .unit = "s", .power = 1 });
-            try meter_expression.addFactor(.numerator, .{ .unit = "m", .power = 1 });
-            try kilogram_expression.addFactor(.numerator, .{ .unit = "kg", .power = 1 });
-            try kelvin_expression.addFactor(.numerator, .{ .unit = "K", .power = 1 });
-            try ampere_expression.addFactor(.numerator, .{ .unit = "A", .power = 1 });
-            try mole_expression.addFactor(.numerator, .{ .unit = "mol", .power = 1 });
-            try candela_expression.addFactor(.numerator, .{ .unit = "cd", .power = 1 });
-
-            const second: *UnitDefinition(N) = try .init(second_expression, non_negative);
+            var second: *D = try .init(
+                &.{.{ .unit = "s", .power = 1 }},
+                &.{},
+                non_negative,
+                "si/time",
+            );
             errdefer second.deinit();
 
-            const meter: *UnitDefinition(N) = try .init(meter_expression, non_negative);
+            var meter: *D = try .init(
+                &.{.{ .unit = "m", .power = 1 }},
+                &.{},
+                non_negative,
+                "si/length",
+            );
             errdefer meter.deinit();
 
-            const kilogram: *UnitDefinition(N) = try .init(kilogram_expression, non_negative);
+            var kilogram: *D = try .init(
+                &.{.{ .unit = "kg", .power = 1 }},
+                &.{},
+                non_negative,
+                "si/mass",
+            );
             errdefer kilogram.deinit();
 
-            const kelvin: *UnitDefinition(N) = try .init(kelvin_expression, non_negative);
+            var kelvin: *D = try .init(
+                &.{.{ .unit = "K", .power = 1 }},
+                &.{},
+                non_negative,
+                "si/temperature",
+            );
             errdefer kelvin.deinit();
 
-            const ampere: *UnitDefinition(N) = try .init(ampere_expression, non_negative);
+            var ampere: *D = try .init(
+                &.{.{ .unit = "A", .power = 1 }},
+                &.{},
+                non_negative,
+                "si/electric current",
+            );
             errdefer ampere.deinit();
 
-            const mole: *UnitDefinition(N) = try .init(mole_expression, non_negative);
+            var mole: *D = try .init(
+                &.{.{ .unit = "mol", .power = 1 }},
+                &.{},
+                non_negative,
+                "si/amount of substance",
+            );
             errdefer mole.deinit();
 
-            const candela: *UnitDefinition(N) = try .init(candela_expression, non_negative);
+            var candela: *D = try .init(
+                &.{.{ .unit = "cd", .power = 1 }},
+                &.{},
+                non_negative,
+                "si/luminous intensity",
+            );
             errdefer candela.deinit();
 
             return .{

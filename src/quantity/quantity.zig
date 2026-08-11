@@ -3,7 +3,6 @@ const std = @import("std");
 const RationalRegistry = @import("../numeric/rational_registry.zig").RationalRegistry;
 const Operation = @import("../operation.zig").Operation;
 const UnitDefinition = @import("../unit/unit_definition.zig").UnitDefinition;
-const UnitRegistry = @import("../unit/unit_registry.zig").UnitRegistry;
 const QuantityRegistry = @import("quantity_registry.zig").QuantityRegistry;
 
 const Allocator = std.mem.Allocator;
@@ -18,14 +17,14 @@ pub fn Quantity(comptime N: type) type {
         pub var allocator: ?Allocator = null;
         pub var quantity_registry: ?*QuantityRegistry(N) = null;
 
-        value: *T,
+        value: *const T,
         definition: *const UnitDefinition(N),
 
         pub fn init(
-            value: *T,
+            value: *const T,
             definition: *const UnitDefinition(N),
         ) !*Self {
-            const alloc = allocator orelse unreachable;
+            const alloc = getAllocator();
 
             try definition.constraint.validate(value);
 
@@ -43,7 +42,7 @@ pub fn Quantity(comptime N: type) type {
         }
 
         pub fn deinit(self: *Self) void {
-            const alloc = allocator orelse unreachable;
+            const alloc = getAllocator();
             alloc.destroy(self);
         }
 
@@ -100,15 +99,18 @@ pub fn Quantity(comptime N: type) type {
         pub fn write(
             self: *const Self,
             io: *const std.Io,
-            buffer: []u8,
         ) !void {
-            try self.value.writeValue(io, buffer);
+            try self.value.writeValue(io);
 
             const stdout: std.Io.File = .stdout();
 
             try stdout.writePositionalAll(io.*, " ", 0);
-            try self.definition.expression.writeUnits(io);
+            try self.definition.writeUnits(io);
             try stdout.writePositionalAll(io.*, "\n", 0);
+        }
+
+        fn getAllocator() Allocator {
+            return allocator orelse unreachable;
         }
 
         fn operate(
@@ -116,7 +118,7 @@ pub fn Quantity(comptime N: type) type {
             left: *const Self,
             right: *const Self,
         ) !*Self {
-            if (!left.definition.expression.eql(right.definition.expression.*))
+            if (!left.definition.eql(right.definition.*))
                 unreachable;
 
             const value: *T = switch (operation) {

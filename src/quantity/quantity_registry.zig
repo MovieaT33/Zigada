@@ -31,5 +31,10 @@ pub fn QuantityRegistry(comptime N: type) type {
         ) Allocator.Error!void {
             try self.quantities.append(self.allocator, quantity);
         }
+
+        pub fn write(self: *const Self, io: *const std.Io) !void {
+            for (self.quantities.items) |quantity|
+                try quantity.write(io);
+        }
     };
 }
