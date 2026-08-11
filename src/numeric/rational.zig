@@ -8,8 +8,6 @@ const Allocator = std.mem.Allocator;
 pub const Rational = struct {
     const Self = @This();
 
-    pub const T = Self;
-
     pub var allocator: ?Allocator = null;
     pub var rational_registry: ?*RationalRegistry = null;
 
@@ -23,7 +21,7 @@ pub const Rational = struct {
         if (denominator == 0)
             return error.DivisionByZero;
 
-        const alloc = allocator orelse unreachable;
+        const alloc = getAllocator();
 
         const self = try alloc.create(Self);
 
@@ -55,7 +53,7 @@ pub const Rational = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        const alloc = allocator orelse unreachable;
+        const alloc = getAllocator();
 
         self.numerator.deinit();
         self.denominator.deinit();
@@ -64,7 +62,7 @@ pub const Rational = struct {
     }
 
     fn clone(self: *const Self) !*Self {
-        const alloc = allocator orelse unreachable;
+        const alloc = getAllocator();
 
         const copy = try alloc.create(Self);
         errdefer alloc.destroy(copy);
@@ -86,7 +84,7 @@ pub const Rational = struct {
     }
 
     fn normalize(self: *Self) !void {
-        const alloc = allocator orelse unreachable;
+        const alloc = getAllocator();
 
         self.numerator.normalize();
         self.denominator.normalize();
@@ -101,27 +99,27 @@ pub const Rational = struct {
             self.numerator.negate();
         }
 
-        var divisor = try BigInt.gcd(
+        var divisor: BigInt = try .gcd(
+            alloc,
             &self.numerator,
             &self.denominator,
-            alloc,
         );
         defer divisor.deinit();
 
         if (divisor.isOne())
             return;
 
-        var new_numerator = try BigInt.divExact(
+        var new_numerator: BigInt = try .divExact(
+            alloc,
             &self.numerator,
             &divisor,
-            alloc,
         );
         errdefer new_numerator.deinit();
 
-        var new_denominator = try BigInt.divExact(
+        var new_denominator: BigInt = try .divExact(
+            alloc,
             &self.denominator,
             &divisor,
-            alloc,
         );
         errdefer new_denominator.deinit();
 
@@ -132,35 +130,12 @@ pub const Rational = struct {
         self.denominator = new_denominator;
     }
 
-    fn bigIntEql(
-        a: *const BigInt,
-        b: *const BigInt,
-    ) bool {
-        if (a.negative != b.negative)
-            return false;
-
-        if (a.limbs.items.len != b.limbs.items.len)
-            return false;
-
-        for (a.limbs.items, b.limbs.items) |a_limb, b_limb| {
-            if (a_limb != b_limb)
-                return false;
-        }
-
-        return true;
-    }
-
     pub fn eql(
         a: *const Self,
         b: *const Self,
     ) bool {
-        return bigIntEql(
-            &a.numerator,
-            &b.numerator,
-        ) and bigIntEql(
-            &a.denominator,
-            &b.denominator,
-        );
+        return BigInt.eql(&a.numerator, &b.numerator) and
+            BigInt.eql(&a.denominator, &b.denominator);
     }
 
     pub fn lessThan(
@@ -406,5 +381,9 @@ pub const Rational = struct {
         );
 
         try self.denominator.writeValue(io);
+    }
+
+    fn getAllocator() Allocator {
+        return allocator orelse unreachable;
     }
 };

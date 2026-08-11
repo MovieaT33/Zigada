@@ -1,8 +1,5 @@
 const std = @import("std");
 
-const UnitDefinition = @import("unit_definition.zig").UnitDefinition;
-const UnitRegistry = @import("unit_registry.zig").UnitRegistry;
-
 const Allocator = std.mem.Allocator;
 
 pub fn SI(comptime D: type) type {

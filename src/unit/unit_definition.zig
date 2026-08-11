@@ -6,8 +6,6 @@ const UnitRegistry = @import("unit_registry.zig").UnitRegistry;
 const Allocator = std.mem.Allocator;
 
 pub fn UnitDefinition(comptime N: type) type {
-    const T = N.T;
-
     return struct {
         const Self = @This();
 
@@ -60,17 +58,17 @@ pub fn UnitDefinition(comptime N: type) type {
         };
 
         pub const Constraint = struct {
-            min: ?*T = null,
-            max: ?*T = null,
+            min: ?*N = null,
+            max: ?*N = null,
 
-            pub fn init(min: ?*T, max: ?*T) @This() {
+            pub fn init(min: ?*N, max: ?*N) @This() {
                 return .{
                     .min = min,
                     .max = max,
                 };
             }
 
-            pub fn validate(self: *const @This(), value: *const T) !void {
+            pub fn validate(self: *const @This(), value: *const N) !void {
                 if (self.min) |min|
                     if (try value.lessThan(min))
                         return error.BelowMinimum;
@@ -117,6 +115,7 @@ pub fn UnitDefinition(comptime N: type) type {
             const alloc = getAllocator();
 
             const self = try alloc.create(Self);
+            errdefer alloc.destroy(self);
 
             self.* = .{
                 .numerator = .empty,
@@ -385,20 +384,19 @@ pub fn UnitDefinition(comptime N: type) type {
                 return false;
 
             for (left_factors) |left_factor| {
-                var count_left: usize = 0;
-                var count_right: usize = 0;
+                var matched = false;
 
-                for (left_factors) |f| {
-                    if (std.mem.eql(u8, f.unit, left_factor.unit) and f.power == left_factor.power)
-                        count_left += 1;
+                for (right_factors) |right_factor| {
+                    if (std.mem.eql(u8, left_factor.unit, right_factor.unit)) {
+                        if (left_factor.power != right_factor.power)
+                            return false;
+
+                        matched = true;
+                        break;
+                    }
                 }
 
-                for (right_factors) |f| {
-                    if (std.mem.eql(u8, f.unit, left_factor.unit) and f.power == left_factor.power)
-                        count_right += 1;
-                }
-
-                if (count_left != count_right)
+                if (!matched)
                     return false;
             }
 

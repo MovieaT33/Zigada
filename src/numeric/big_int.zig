@@ -49,10 +49,7 @@ pub const BigInt = struct {
             self.limbs.items[0] == 1;
     }
 
-    pub fn cmp(
-        a: *const BigInt,
-        b: *const BigInt,
-    ) std.math.Order {
+    pub fn cmp(a: *const BigInt, b: *const BigInt) std.math.Order {
         if (a.negative != b.negative)
             return if (a.negative) .lt else .gt;
 
@@ -66,6 +63,10 @@ pub const BigInt = struct {
             }
         else
             order;
+    }
+
+    fn eql(a: *const BigInt, b: *const BigInt) bool {
+        return cmp(a, b) == .eq;
     }
 
     pub fn normalize(self: *BigInt) void {
@@ -567,9 +568,9 @@ pub const BigInt = struct {
     }
 
     pub fn divExact(
+        allocator: Allocator,
         a: *const BigInt,
         b: *const BigInt,
-        allocator: Allocator,
     ) !BigInt {
         var result = try div(
             a,
@@ -590,9 +591,9 @@ pub const BigInt = struct {
     }
 
     pub fn gcd(
+        allocator: Allocator,
         a: *const BigInt,
         b: *const BigInt,
-        allocator: Allocator,
     ) !BigInt {
         var x = try a.clone(allocator);
         errdefer x.deinit();

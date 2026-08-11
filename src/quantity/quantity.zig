@@ -1,6 +1,5 @@
 const std = @import("std");
 
-const RationalRegistry = @import("../numeric/rational_registry.zig").RationalRegistry;
 const Operation = @import("../operation.zig").Operation;
 const UnitDefinition = @import("../unit/unit_definition.zig").UnitDefinition;
 const QuantityRegistry = @import("quantity_registry.zig").QuantityRegistry;
@@ -8,7 +7,6 @@ const QuantityRegistry = @import("quantity_registry.zig").QuantityRegistry;
 const Allocator = std.mem.Allocator;
 
 pub fn Quantity(comptime N: type) type {
-    const T = N.T;
     const Constraint = UnitDefinition(N).Constraint;
 
     return struct {
@@ -17,11 +15,11 @@ pub fn Quantity(comptime N: type) type {
         pub var allocator: ?Allocator = null;
         pub var quantity_registry: ?*QuantityRegistry(N) = null;
 
-        value: *const T,
+        value: *const N,
         definition: *const UnitDefinition(N),
 
         pub fn init(
-            value: *const T,
+            value: *const N,
             definition: *const UnitDefinition(N),
         ) !*Self {
             const alloc = getAllocator();
@@ -29,6 +27,7 @@ pub fn Quantity(comptime N: type) type {
             try definition.constraint.validate(value);
 
             const self = try alloc.create(Self);
+            errdefer alloc.destroy(self);
 
             self.* = .{
                 .value = value,
@@ -54,11 +53,11 @@ pub fn Quantity(comptime N: type) type {
             return operate(.sub, left, right);
         }
 
-        pub fn scale(left: *const Self, right: *const T) !*Self {
+        pub fn scale(left: *const Self, right: *const N) !*Self {
             return scaleValue(.mul, left, right);
         }
 
-        pub fn unscale(left: *const Self, right: *const T) !*Self {
+        pub fn unscale(left: *const Self, right: *const N) !*Self {
             return scaleValue(.div, left, right);
         }
 
@@ -121,7 +120,7 @@ pub fn Quantity(comptime N: type) type {
             if (!left.definition.eql(right.definition.*))
                 unreachable;
 
-            const value: *T = switch (operation) {
+            const value: *N = switch (operation) {
                 .add => try .add(left.value, right.value),
                 .sub => try .sub(left.value, right.value),
                 else => unreachable,
@@ -129,22 +128,22 @@ pub fn Quantity(comptime N: type) type {
 
             try left.definition.constraint.validate(value);
 
-            return try .init(value, left.definition);
+            return try init(value, left.definition);
         }
 
         fn scaleValue(
             comptime operation: Operation,
             left: *const Self,
-            right: *const T,
+            right: *const N,
         ) !Self {
-            const value: *T = switch (operation) {
+            const value: *N = switch (operation) {
                 .mul => try .mul(left.value, right),
                 .div => try .div(left.value, right),
             };
 
             try left.definition.constraint.validate(value);
 
-            return try .init(value, left.definition);
+            return try init(value, left.definition);
         }
 
         fn combine(
@@ -164,7 +163,7 @@ pub fn Quantity(comptime N: type) type {
                 name,
             );
 
-            const value: *T = switch (operation) {
+            const value: *N = switch (operation) {
                 .mul => try .mul(left.value, right.value),
                 .div => try .div(left.value, right.value),
                 else => unreachable,
@@ -172,7 +171,7 @@ pub fn Quantity(comptime N: type) type {
 
             try definition.constraint.validate(value);
 
-            return try .init(value, definition);
+            return try init(value, definition);
         }
     };
 }

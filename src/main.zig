@@ -61,7 +61,7 @@ pub fn main(init: std.process.Init) !void {
     );
 
     const velocity_1: *RationalQuantity = try .init(
-        try Rational.init(10, 1),
+        try Rational.init(10, 1), // TODO: fix
         velocity,
     );
 
