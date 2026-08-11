@@ -1,8 +1,8 @@
-// Checked style
-
 const std = @import("std");
 
+const Operation = @import("../operation.zig").Operation;
 const UnitFactor = @import("unit_factor.zig").UnitFactor;
+const UnitRegistry = @import("unit_registry.zig").UnitRegistry;
 
 const Allocator = std.mem.Allocator;
 
@@ -28,10 +28,7 @@ pub const UnitExpression = struct {
         remove_both,
     };
 
-    pub const Operation = enum {
-        mul,
-        div,
-    };
+    pub var unit_registry: ?*UnitRegistry = null;
 
     allocator: Allocator,
     name: ?[]const u8,
@@ -50,6 +47,9 @@ pub const UnitExpression = struct {
             .numerator = .empty,
             .denominator = .empty,
         };
+
+        if (unit_registry) |registry|
+            try registry.adopt(self, true);
 
         return self;
     }
@@ -91,15 +91,15 @@ pub const UnitExpression = struct {
         return expression;
     }
 
-    pub fn eql(a: Self, b: Self) bool {
-        return factorsEql(a, b, .numerator) and
-            factorsEql(a, b, .denominator);
+    pub fn eql(left: Self, right: Self) bool {
+        return factorsEql(.numerator, left, right) and
+            factorsEql(.denominator, left, right);
     }
 
     pub fn addFactor(
         self: *Self,
-        factor: UnitFactor,
         side: FactorSide,
+        factor: UnitFactor,
     ) Allocator.Error!void {
         const factors = switch (side) {
             .numerator => &self.numerator,
@@ -118,11 +118,11 @@ pub const UnitExpression = struct {
 
     pub fn addFactors(
         self: *Self,
-        factors: []const UnitFactor,
         side: FactorSide,
+        factors: []const UnitFactor,
     ) Allocator.Error!void {
         for (factors) |factor|
-            try self.addFactor(factor, side);
+            try self.addFactor(side, factor);
     }
 
     pub fn crossCancel(self: *Self) void {
@@ -159,27 +159,28 @@ pub const UnitExpression = struct {
     }
 
     pub fn combine(
+        comptime operation: Operation,
+        comptime cross_cancellation: bool,
         left: *const Self,
         right: *const Self,
-        comptime operation: Operation,
         name: ?[]const u8,
-        comptime cross_cancellation: bool,
     ) Allocator.Error!*Self {
         var expression = try left.clone(name);
 
         const right_side: FactorSide = switch (operation) {
             .mul => .numerator,
             .div => .denominator,
+            else => unreachable,
         };
 
         try expression.addFactors(
-            right.numerator.items,
             right_side,
+            right.numerator.items,
         );
 
         try expression.addFactors(
-            right.denominator.items,
             right_side.opposite(),
+            right.denominator.items,
         );
 
         if (cross_cancellation)
@@ -202,7 +203,7 @@ pub const UnitExpression = struct {
         self: *const Self,
         io: *const std.Io,
     ) std.Io.File.WriteFilePositionalError!void {
-        var stdout = std.Io.File.stdout();
+        var stdout: std.Io.File = .stdout();
 
         if (self.name) |name| {
             try stdout.writePositionalAll(io.*, "[", 0);
@@ -218,7 +219,7 @@ pub const UnitExpression = struct {
         var text = try self.toText();
         defer text.deinit(self.allocator);
 
-        var stdout = std.Io.File.stdout();
+        var stdout: std.Io.File = .stdout();
 
         try stdout.writePositionalAll(io.*, text.items, 0);
     }
@@ -230,33 +231,37 @@ pub const UnitExpression = struct {
         try self.writeName(io);
         try self.writeUnits(io);
 
-        var stdout = std.Io.File.stdout();
+        var stdout: std.Io.File = .stdout();
 
         try stdout.writePositionalAll(io.*, "\n", 0);
     }
 
-    fn factorsEql(a: Self, b: Self, side: FactorSide) bool {
-        const a_factors = switch (side) {
-            .numerator => a.numerator.items,
-            .denominator => a.denominator.items,
+    fn factorsEql(
+        comptime side: FactorSide,
+        left: Self,
+        right: Self,
+    ) bool {
+        const left_factors = switch (side) {
+            .numerator => left.numerator.items,
+            .denominator => left.denominator.items,
         };
 
-        const b_factors = switch (side) {
-            .numerator => b.numerator.items,
-            .denominator => b.denominator.items,
+        const right_factors = switch (side) {
+            .numerator => right.numerator.items,
+            .denominator => right.denominator.items,
         };
 
-        if (a_factors.len != b_factors.len)
+        if (left_factors.len != right_factors.len)
             return false;
 
-        for (a_factors) |factor| {
+        for (left_factors) |left_factor| {
             var matched = false;
 
-            for (b_factors) |other| {
-                if (!std.mem.eql(u8, factor.unit, other.unit))
+            for (right_factors) |right_factor| {
+                if (!std.mem.eql(u8, left_factor.unit, right_factor.unit))
                     continue;
 
-                if (factor.power == other.power) {
+                if (left_factor.power == right_factor.power) {
                     matched = true;
                     break;
                 }

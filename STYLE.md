@@ -2,7 +2,7 @@
 
 01. **Naming** — name things by what they represent, not their data structure.
 02. **Shorthand** — use shorthand forms when possible.
-03. **Clarity** — avoid ambiguous names; use descriptive names such as `index` instead of `i`, except for conventional mathematical variables or names whose meaning is clear from context.
+03. **Clarity** — avoid ambiguous names; use descriptive names.
 
 # Imports
 
@@ -35,12 +35,14 @@
 12. **Self** — do not use `Self` for one-off references.
 13. **Fields** — declare all fields together before methods.
 14. **Initialization** — use multiline struct initialization only when the struct has more than one field.
+15. **Initialization** — every struct must provide an init function.
 
 # Functions
 
-15. **Order** — order functions by role: lifecycle, copy/clone, queries, mutation, conversion, writers, helpers.
-16. **Inline** — do not use `inline`.
-17. **Length** — keep functions under *40* lines, except in `main.zig`.
-18. **Input** — handle all input variants and relevant edge cases.
-19. **Errors** — explicitly specify a function's only possible error.
-20. **Error set** — define a public `Error` set only when custom errors are needed; use it instead of standalone `error.*`.
+16. **Order** — order functions by role: lifecycle, copy/clone, queries, mutation, conversion, writers, helpers.
+17. **Inline** — do not use `inline`.
+18. **Comptime** — place comptime parameters after `self` and before other runtime parameters.
+19. **Length** — keep functions under *40* lines, except in `main.zig`.
+20. **Input** — handle all input variants and relevant edge cases.
+21. **Errors** — explicitly specify a function's only possible error.
+22. **Error set** — define a public `Error` set only when custom errors are needed; use it instead of standalone `error.*`.

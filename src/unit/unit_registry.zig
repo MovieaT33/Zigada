@@ -1,8 +1,7 @@
-// Checked style
-
 const std = @import("std");
 
 const UnitExpression = @import("unit_expression.zig").UnitExpression;
+const UnitDefinition = @import("unit_definition.zig").UnitDefinition;
 
 const Allocator = std.mem.Allocator;
 

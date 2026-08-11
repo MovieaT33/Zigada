@@ -1,3 +1,6 @@
+- Add logs
 - Update `ration.zig`, `big_int.zig`
-- Limits in `UnitExpresison`
+- Use writer instead
+- Delete numeric wrapper
+- Remove `.`
 - Add physics.zig (kinematics, statics, mechanics)

@@ -1,5 +1,3 @@
-// Created by ChatGPT
-
 const std = @import("std");
 
 const Allocator = std.mem.Allocator;
@@ -49,6 +47,25 @@ pub const BigInt = struct {
         return !self.negative and
             self.limbs.items.len == 1 and
             self.limbs.items[0] == 1;
+    }
+
+    pub fn cmp(
+        a: *const BigInt,
+        b: *const BigInt,
+    ) std.math.Order {
+        if (a.negative != b.negative)
+            return if (a.negative) .lt else .gt;
+
+        const order = cmpAbs(a, b);
+
+        return if (a.negative)
+            switch (order) {
+                .lt => .gt,
+                .eq => .eq,
+                .gt => .lt,
+            }
+        else
+            order;
     }
 
     pub fn normalize(self: *BigInt) void {

@@ -1,5 +1,3 @@
-// Checked style
-
 const std = @import("std");
 
 const Rational = @import("rational.zig").Rational;
@@ -10,7 +8,7 @@ pub const RationalRegistry = struct {
     const Self = @This();
 
     allocator: Allocator,
-    rationals: std.ArrayList(Rational),
+    rationals: std.ArrayList(*Rational),
 
     pub fn init(allocator: Allocator) Self {
         return .{
@@ -20,7 +18,7 @@ pub const RationalRegistry = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        for (self.rationals.items) |*rational|
+        for (self.rationals.items) |rational|
             rational.deinit();
 
         self.rationals.deinit(self.allocator);
@@ -28,7 +26,7 @@ pub const RationalRegistry = struct {
 
     pub fn adopt(
         self: *Self,
-        rational: Rational,
+        rational: *Rational,
     ) Allocator.Error!void {
         try self.rationals.append(self.allocator, rational);
     }

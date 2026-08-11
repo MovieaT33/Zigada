@@ -1,5 +1,3 @@
-// Checked style
-
 const std = @import("std");
 
 pub const Error = error{
@@ -27,7 +25,19 @@ pub fn NumericWrapper(comptime T: type) type {
 
         pub fn deinit(_: *const Self) void {}
 
-        // `!Self` is required for all arithmetic operations.
+        // `!Self` is required
+        pub fn eql(a: Self, b: Self) !bool {
+            return a.value == b.value;
+        }
+
+        pub fn lessThan(a: Self, b: Self) !bool {
+            return a.value < b.value;
+        }
+
+        pub fn moreThan(a: Self, b: Self) !bool {
+            return a.value > b.value;
+        }
+
         pub fn add(a: Self, b: Self) !Self {
             return .{ .value = a.value + b.value };
         }

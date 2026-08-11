@@ -1,0 +1,176 @@
+const std = @import("std");
+
+const RationalRegistry = @import("../numeric/rational_registry.zig").RationalRegistry;
+const Operation = @import("../operation.zig").Operation;
+const UnitDefinition = @import("../unit/unit_definition.zig").UnitDefinition;
+const UnitRegistry = @import("../unit/unit_registry.zig").UnitRegistry;
+const QuantityRegistry = @import("quantity_registry.zig").QuantityRegistry;
+
+const Allocator = std.mem.Allocator;
+
+pub fn Quantity(comptime N: type) type {
+    const T = N.T;
+    const Constraint = UnitDefinition(N).Constraint;
+
+    return struct {
+        const Self = @This();
+
+        pub var allocator: ?Allocator = null;
+        pub var quantity_registry: ?*QuantityRegistry(N) = null;
+
+        value: *T,
+        definition: *const UnitDefinition(N),
+
+        pub fn init(
+            value: *T,
+            definition: *const UnitDefinition(N),
+        ) !*Self {
+            const alloc = allocator orelse unreachable;
+
+            try definition.constraint.validate(value);
+
+            const self = try alloc.create(Self);
+
+            self.* = .{
+                .value = value,
+                .definition = definition,
+            };
+
+            if (quantity_registry) |registry|
+                try registry.adopt(self);
+
+            return self;
+        }
+
+        pub fn deinit(self: *Self) void {
+            const alloc = allocator orelse unreachable;
+            alloc.destroy(self);
+        }
+
+        pub fn add(left: *const Self, right: *const Self) !*Self {
+            return operate(.add, left, right);
+        }
+
+        pub fn sub(left: *const Self, right: *const Self) !*Self {
+            return operate(.sub, left, right);
+        }
+
+        pub fn scale(left: *const Self, right: *const T) !*Self {
+            return scaleValue(.mul, left, right);
+        }
+
+        pub fn unscale(left: *const Self, right: *const T) !*Self {
+            return scaleValue(.div, left, right);
+        }
+
+        pub fn mul(
+            comptime cross_cancellation: bool,
+            left: *const Self,
+            right: *const Self,
+            constraint: Constraint,
+            name: ?[]const u8,
+        ) !*Self {
+            return combine(
+                .mul,
+                cross_cancellation,
+                left,
+                right,
+                constraint,
+                name,
+            );
+        }
+
+        pub fn div(
+            comptime cross_cancellation: bool,
+            left: *const Self,
+            right: *const Self,
+            constraint: Constraint,
+            name: ?[]const u8,
+        ) !*Self {
+            return combine(
+                .div,
+                cross_cancellation,
+                left,
+                right,
+                constraint,
+                name,
+            );
+        }
+
+        pub fn write(
+            self: *const Self,
+            io: *const std.Io,
+            buffer: []u8,
+        ) !void {
+            try self.value.writeValue(io, buffer);
+
+            const stdout: std.Io.File = .stdout();
+
+            try stdout.writePositionalAll(io.*, " ", 0);
+            try self.definition.expression.writeUnits(io);
+            try stdout.writePositionalAll(io.*, "\n", 0);
+        }
+
+        fn operate(
+            comptime operation: Operation,
+            left: *const Self,
+            right: *const Self,
+        ) !*Self {
+            if (!left.definition.expression.eql(right.definition.expression.*))
+                unreachable;
+
+            const value: *T = switch (operation) {
+                .add => try .add(left.value, right.value),
+                .sub => try .sub(left.value, right.value),
+                else => unreachable,
+            };
+
+            try left.definition.constraint.validate(value);
+
+            return try .init(value, left.definition);
+        }
+
+        fn scaleValue(
+            comptime operation: Operation,
+            left: *const Self,
+            right: *const T,
+        ) !Self {
+            const value: *T = switch (operation) {
+                .mul => try .mul(left.value, right),
+                .div => try .div(left.value, right),
+            };
+
+            try left.definition.constraint.validate(value);
+
+            return try .init(value, left.definition);
+        }
+
+        fn combine(
+            comptime operation: Operation,
+            comptime cross_cancellation: bool,
+            left: *const Self,
+            right: *const Self,
+            constraint: Constraint,
+            name: ?[]const u8,
+        ) !*Self {
+            const definition: *UnitDefinition(N) = try .combine(
+                operation,
+                cross_cancellation,
+                left.definition,
+                right.definition,
+                constraint,
+                name,
+            );
+
+            const value: *T = switch (operation) {
+                .mul => try .mul(left.value, right.value),
+                .div => try .div(left.value, right.value),
+                else => unreachable,
+            };
+
+            try definition.constraint.validate(value);
+
+            return try .init(value, definition);
+        }
+    };
+}
