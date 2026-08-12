@@ -26,19 +26,19 @@ pub const BigInt = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        const alloc = getAllocator();
-        self.limbs.deinit(alloc);
+        const _allocator = getAllocator();
+        self.limbs.deinit(_allocator);
     }
 
     pub fn clone(self: *const Self) Allocator.Error!Self {
-        const alloc = getAllocator();
+        const _allocator = getAllocator();
 
         var result = init();
         errdefer result.deinit();
 
         result.negative = self.negative;
 
-        try result.limbs.appendSlice(alloc, self.limbs.items);
+        try result.limbs.appendSlice(_allocator, self.limbs.items);
 
         return result;
     }
@@ -84,7 +84,7 @@ pub const BigInt = struct {
         self: *Self,
         value: Limb,
     ) Allocator.Error!void {
-        const alloc = getAllocator();
+        const _allocator = getAllocator();
 
         self.limbs.clearRetainingCapacity();
         self.negative = false;
@@ -92,7 +92,7 @@ pub const BigInt = struct {
         if (value == 0)
             return;
 
-        try self.limbs.append(alloc, value);
+        try self.limbs.append(_allocator, value);
     }
 
     pub fn setSigned(
@@ -141,7 +141,7 @@ pub const BigInt = struct {
         lhs: *const Self,
         rhs: *const Self,
     ) Allocator.Error!Self {
-        const alloc = getAllocator();
+        const _allocator = getAllocator();
 
         var result = init();
         errdefer result.deinit();
@@ -151,7 +151,7 @@ pub const BigInt = struct {
             rhs.limbs.items.len,
         );
 
-        try result.limbs.ensureTotalCapacity(alloc, max_len + 1);
+        try result.limbs.ensureTotalCapacity(_allocator, max_len + 1);
 
         var carry: Wide = 0;
 
@@ -168,13 +168,13 @@ pub const BigInt = struct {
 
             const sum = av + bv + carry;
 
-            try result.limbs.append(alloc, @truncate(sum));
+            try result.limbs.append(_allocator, @truncate(sum));
 
             carry = sum >> 64;
         }
 
         if (carry != 0)
-            try result.limbs.append(alloc, @truncate(carry));
+            try result.limbs.append(_allocator, @truncate(carry));
 
         return result;
     }
@@ -183,12 +183,12 @@ pub const BigInt = struct {
         lhs: *const Self,
         rhs: *const Self,
     ) Allocator.Error!Self {
-        const alloc = getAllocator();
+        const _allocator = getAllocator();
 
         var result = init();
         errdefer result.deinit();
 
-        try result.limbs.ensureTotalCapacity(alloc, lhs.limbs.items.len);
+        try result.limbs.ensureTotalCapacity(_allocator, lhs.limbs.items.len);
 
         var borrow: Wide = 0;
 
@@ -203,13 +203,13 @@ pub const BigInt = struct {
             const subtrahend = bv + borrow;
 
             if (av >= subtrahend) {
-                try result.limbs.append(alloc, @truncate(av - subtrahend));
+                try result.limbs.append(_allocator, @truncate(av - subtrahend));
                 borrow = 0;
             } else {
                 const value =
                     (@as(Wide, 1) << 64) + av - subtrahend;
 
-                try result.limbs.append(alloc, @truncate(value));
+                try result.limbs.append(_allocator, @truncate(value));
                 borrow = 1;
             }
         }
@@ -253,7 +253,7 @@ pub const BigInt = struct {
         lhs: *const Self,
         rhs: *const Self,
     ) Allocator.Error!Self {
-        const alloc = getAllocator();
+        const _allocator = getAllocator();
 
         var result = init();
         errdefer result.deinit();
@@ -265,7 +265,7 @@ pub const BigInt = struct {
             lhs.limbs.items.len +
             rhs.limbs.items.len;
 
-        try result.limbs.resize(alloc, len);
+        try result.limbs.resize(_allocator, len);
         @memset(result.limbs.items, 0);
 
         for (lhs.limbs.items, 0..) |av, i| {
@@ -305,7 +305,7 @@ pub const BigInt = struct {
     }
 
     pub fn mod(lhs: *const Self, rhs: *const Self) !Self {
-        const alloc = getAllocator();
+        const _allocator = getAllocator();
 
         if (rhs.isZero())
             return error.DivisionByZero;
@@ -331,7 +331,7 @@ pub const BigInt = struct {
             return dividend;
         }
 
-        try result.limbs.ensureTotalCapacity(alloc, divisor.limbs.items.len);
+        try result.limbs.ensureTotalCapacity(_allocator, divisor.limbs.items.len);
 
         var limb_index = dividend.limbs.items.len;
 
@@ -362,7 +362,7 @@ pub const BigInt = struct {
     }
 
     fn shiftLeftOne(self: *Self) Allocator.Error!void {
-        const alloc = getAllocator();
+        const _allocator = getAllocator();
 
         if (self.isZero())
             return;
@@ -377,14 +377,14 @@ pub const BigInt = struct {
         }
 
         if (carry != 0)
-            try self.limbs.append(alloc, carry);
+            try self.limbs.append(_allocator, carry);
     }
 
     fn addOne(self: *Self) Allocator.Error!void {
-        const alloc = getAllocator();
+        const _allocator = getAllocator();
 
         if (self.isZero()) {
-            try self.limbs.append(alloc, 1);
+            try self.limbs.append(_allocator, 1);
             return;
         }
 
@@ -395,7 +395,7 @@ pub const BigInt = struct {
                 return;
         }
 
-        try self.limbs.append(alloc, 1);
+        try self.limbs.append(_allocator, 1);
     }
 
     fn subAbsInPlace(self: *Self, other: *const Self) void {
@@ -429,7 +429,7 @@ pub const BigInt = struct {
     }
 
     pub fn div(lhs: *const Self, rhs: *const Self) !DivResult {
-        const alloc = getAllocator();
+        const _allocator = getAllocator();
 
         if (rhs.isZero())
             return error.DivisionByZero;
@@ -472,7 +472,7 @@ pub const BigInt = struct {
                 ],
             ));
 
-        try quotient.limbs.resize(alloc, (bit_count + 63) / 64);
+        try quotient.limbs.resize(_allocator, (bit_count + 63) / 64);
         @memset(quotient.limbs.items, 0);
 
         var bit_index = bit_count;
@@ -589,6 +589,6 @@ pub const BigInt = struct {
     }
 
     fn getAllocator() Allocator {
-        return allocator orelse unreachable;
+        return allocator orelse unreachable; // Allocator must be initialized
     }
 };

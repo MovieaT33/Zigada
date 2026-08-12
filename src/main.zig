@@ -49,74 +49,46 @@ pub fn main(init: std.process.Init) !void {
 
     const RationalPhysics = Physics(Rational);
     const RationalSI = RationalPhysics.NumericSI;
+    const ExtendedRationalSI = RationalPhysics.ExtendedNumericSI;
     const RationalDynamics = RationalPhysics.NumericDynamics;
 
-    const si = try RationalSI.create(non_negative);
+    const si =
+        try RationalSI.create(non_negative);
+    const extended_si =
+        try ExtendedRationalSI.create(non_negative, si);
 
+    RationalDynamics.si = si;
+    RationalDynamics.extended_si = extended_si;
     RationalDynamics.non_negative = try non_negative.clone();
-
-    const velocity: *RationalDefinition = try .div(
-        false,
-        si.meter,
-        si.second,
-        non_negative,
-        "velocity",
-    );
 
     const mass: *RationalQuantity = try .init(
         try Rational.init(5, 1),
         si.kilogram,
+        "m",
     );
 
-    const velocity_1: *RationalQuantity = try .init(
-        try Rational.init(1, 10),
-        velocity,
+    const acceleration: *RationalQuantity = try .init(
+        try Rational.init(981, 100),
+        extended_si.acceleration,
+        "a",
     );
 
-    const velocity_2: *RationalQuantity = try .init(
-        try Rational.init(30, 1),
-        velocity,
+    const force = try RationalDynamics.calculateForce(
+        mass,
+        acceleration,
+        "F",
     );
 
-    const time: *RationalQuantity = try .init(
-        try Rational.init(10, 1),
-        si.second,
+    const area: *RationalQuantity = try .init(
+        try Rational.init(4, 1),
+        extended_si.area,
+        "A",
     );
 
-    const side: *RationalQuantity = try .init(
-        try Rational.init(2, 1),
-        si.meter,
-    );
-
-    const square: *RationalQuantity = try .mul(
-        false,
-        side,
-        side,
-        non_negative,
-        "square",
-    );
-
-    const delta_velocity: *RationalQuantity = try .sub(
-        velocity_2,
-        velocity_1,
-    );
-
-    const acceleration: *RationalQuantity = try .div(
-        false,
-        delta_velocity,
-        time,
-        non_negative,
-        "acceleration",
-    );
-
-    const force = try RationalDynamics.force(mass, acceleration);
-
-    const pressure: *RationalQuantity = try .div(
-        true,
+    const pressure: *RationalQuantity = try RationalDynamics.calculatePressure(
         force,
-        square,
-        non_negative,
-        "pressure",
+        area,
+        "p",
     );
 
     _ = pressure;

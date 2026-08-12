@@ -1,4 +1,4 @@
 - Review `big_int.zig`
-- Add definitions to `physics.zig`
+- Update `extended_si.zig`
 - Update `dynamics.zig`
 - Add `kinematics.zig`, `statics.zig`, `mechanics.zig`

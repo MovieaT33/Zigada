@@ -29,7 +29,7 @@ pub fn SI(comptime Definition: type) type {
                 .second = .{ "s", "time" },
             };
 
-            inline for (std.meta.fields(Self), 0..) |field, i| {
+            inline for (std.meta.fields(Self)) |field| {
                 const info = @field(units, field.name);
 
                 @field(self, field.name) = try Definition.init(

@@ -30,6 +30,15 @@ pub fn UnitRegistry(comptime Definition: type) type {
             try self.definitions.append(self.allocator, definition);
         }
 
+        pub fn unadopt(self: *Self, definition: *Definition) void {
+            for (self.definitions.items, 0..) |existing, index| {
+                if (existing == definition) {
+                    _ = self.definitions.swapRemove(index);
+                    return;
+                }
+            }
+        }
+
         pub fn write(
             self: *const Self,
             writer: *std.Io.Writer,

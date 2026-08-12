@@ -18,21 +18,24 @@ pub fn Quantity(comptime Numeric: type) type {
 
         value: *const Numeric,
         definition: *const NumericDefinition,
+        label: ?[]const u8,
 
         pub fn init(
             value: *const Numeric,
             definition: *const NumericDefinition,
+            label: ?[]const u8,
         ) !*Self {
-            const alloc = getAllocator();
+            const _allocator = getAllocator();
 
             try definition.constraint.validate(value);
 
-            const self = try alloc.create(Self);
-            errdefer alloc.destroy(self);
+            const self = try _allocator.create(Self);
+            errdefer _allocator.destroy(self);
 
             self.* = .{
                 .value = value,
                 .definition = definition,
+                .label = label,
             };
 
             if (quantity_registry) |registry|
@@ -45,23 +48,33 @@ pub fn Quantity(comptime Numeric: type) type {
             getAllocator().destroy(self);
         }
 
+        fn hasSameDefinition(self: *const Self, definition: *const NumericDefinition) !bool {
+            return self.definition.eql(definition.*);
+        }
+
+        pub fn assertSameDefinition(self: *const Self, definition: *const NumericDefinition) !void {
+            if (!try self.hasSameDefinition(definition))
+                unreachable; // Definitions must match
+        }
+
         pub fn operate(
             comptime operation: Operation,
             lhs: *const Self,
             rhs: *const Self,
+            label: ?[]const u8,
         ) !*Self {
-            if (!lhs.definition.eql(rhs.definition.*))
-                unreachable;
+            try rhs.assertSameDefinition(lhs.definition);
 
             const value: *Numeric = switch (operation) {
                 .add => try .add(lhs.value, rhs.value),
                 .sub => try .sub(lhs.value, rhs.value),
-                else => unreachable,
+                else => unreachable, // Unsupported operation
             };
 
             return try init(
                 value,
                 lhs.definition,
+                label,
             );
         }
 
@@ -69,6 +82,7 @@ pub fn Quantity(comptime Numeric: type) type {
             comptime operation: Operation,
             lhs: *const Self,
             rhs: *const Numeric,
+            label: ?[]const u8,
         ) !Self {
             const value: *Numeric = switch (operation) {
                 .mul => try .mul(lhs.value, rhs),
@@ -78,6 +92,7 @@ pub fn Quantity(comptime Numeric: type) type {
             return try init(
                 value,
                 lhs.definition,
+                label,
             );
         }
 
@@ -88,6 +103,8 @@ pub fn Quantity(comptime Numeric: type) type {
             rhs: *const Self,
             constraint: Constraint,
             name: ?[]const u8,
+            existing: ?*NumericDefinition,
+            label: ?[]const u8,
         ) !*Self {
             const definition: *NumericDefinition = try .combine(
                 operation,
@@ -96,34 +113,52 @@ pub fn Quantity(comptime Numeric: type) type {
                 rhs.definition,
                 constraint,
                 name,
+                existing,
             );
 
             const value: *Numeric = switch (operation) {
                 .mul => try .mul(lhs.value, rhs.value),
                 .div => try .div(lhs.value, rhs.value),
-                else => unreachable,
+                else => unreachable, // Unsupported operation
             };
 
             return try init(
                 value,
                 definition,
+                label,
             );
         }
 
-        pub fn add(lhs: *const Self, rhs: *const Self) !*Self {
-            return operate(.add, lhs, rhs);
+        pub fn add(
+            lhs: *const Self,
+            rhs: *const Self,
+            label: ?[]const u8,
+        ) !*Self {
+            return operate(.add, lhs, rhs, label);
         }
 
-        pub fn sub(lhs: *const Self, rhs: *const Self) !*Self {
-            return operate(.sub, lhs, rhs);
+        pub fn sub(
+            lhs: *const Self,
+            rhs: *const Self,
+            label: ?[]const u8,
+        ) !*Self {
+            return operate(.sub, lhs, rhs, label);
         }
 
-        pub fn scale(lhs: *const Self, rhs: *const Numeric) !*Self {
-            return scaleValue(.mul, lhs, rhs);
+        pub fn scale(
+            lhs: *const Self,
+            rhs: *const Numeric,
+            label: ?[]const u8,
+        ) !*Self {
+            return scaleValue(.mul, lhs, rhs, label);
         }
 
-        pub fn unscale(lhs: *const Self, rhs: *const Numeric) !*Self {
-            return scaleValue(.div, lhs, rhs);
+        pub fn unscale(
+            lhs: *const Self,
+            rhs: *const Numeric,
+            label: ?[]const u8,
+        ) !*Self {
+            return scaleValue(.div, lhs, rhs, label);
         }
 
         pub fn mul(
@@ -132,6 +167,8 @@ pub fn Quantity(comptime Numeric: type) type {
             rhs: *const Self,
             constraint: Constraint,
             name: ?[]const u8,
+            label: ?[]const u8,
+            existing: ?*NumericDefinition,
         ) !*Self {
             return combine(
                 .mul,
@@ -140,6 +177,8 @@ pub fn Quantity(comptime Numeric: type) type {
                 rhs,
                 constraint,
                 name,
+                existing,
+                label,
             );
         }
 
@@ -149,6 +188,8 @@ pub fn Quantity(comptime Numeric: type) type {
             rhs: *const Self,
             constraint: Constraint,
             name: ?[]const u8,
+            label: ?[]const u8,
+            existing: ?*NumericDefinition,
         ) !*Self {
             return combine(
                 .div,
@@ -157,6 +198,8 @@ pub fn Quantity(comptime Numeric: type) type {
                 rhs,
                 constraint,
                 name,
+                existing,
+                label,
             );
         }
 
@@ -164,13 +207,22 @@ pub fn Quantity(comptime Numeric: type) type {
             self: *const Self,
             writer: *std.Io.Writer,
         ) std.Io.Writer.Error!void {
+            try self.writeLabel(writer);
             try self.value.write(writer);
             try writer.writeByte(' ');
             try self.definition.writeUnits(writer);
         }
 
+        fn writeLabel(
+            self: *const Self,
+            writer: *std.Io.Writer,
+        ) std.Io.Writer.Error!void {
+            if (self.label) |label|
+                try writer.print("{s} = ", .{label});
+        }
+
         fn getAllocator() Allocator {
-            return allocator orelse unreachable;
+            return allocator orelse unreachable; // Allocator must be initialized
         }
     };
 }

@@ -24,25 +24,26 @@
 # Comments
 
 09. **Comments** — comment only unclear code or large functions.
+10. **Unreachable** — when using `unreachable`, always add a comment.
 
 # Ordering
 
-10. **Dependencies** — place dependencies before data.
+11. **Dependencies** — place dependencies before data.
 
 # Structs
 
-11. **Self** — use `Self` for the enclosing struct type.
-12. **Self** — do not use `Self` for one-off references.
-13. **Fields** — declare all fields together before methods.
-14. **Initialization** — use multiline struct initialization only when the struct has more than one field.
-15. **Initialization** — every struct must provide an init function.
+12. **Self** — use `Self` for the enclosing struct type.
+13. **Self** — do not use `Self` for one-off references.
+14. **Fields** — declare all fields together before methods.
+15. **Initialization** — use multiline struct initialization only when the struct has more than one field.
+16. **Initialization** — every struct must provide an init function.
 
 # Functions
 
-16. **Order** — order functions by role: lifecycle, copy/clone, queries, mutation, conversion, writers, helpers.
-17. **Inline** — do not use `inline`.
-18. **Comptime** — place comptime parameters after `self` and before other runtime parameters.
-19. **Length** — keep functions under *60* lines, except in `main.zig`.
-20. **Input** — handle all input variants and relevant edge cases.
-21. **Errors** — explicitly specify a function's only possible error.
-22. **Error set** — define a public `Error` set only when custom errors are needed; use it instead of standalone `error.*`.
+17. **Order** — order functions by role: lifecycle, copy/clone, queries, mutation, conversion, writers, helpers.
+18. **Inline** — do not use `inline`.
+19. **Comptime** — place comptime parameters after `self` and before other runtime parameters.
+20. **Length** — keep functions under *60* lines, except in `main.zig`.
+21. **Input** — handle all input variants and relevant edge cases.
+22. **Errors** — explicitly specify a function's only possible error.
+23. **Error set** — define a public `Error` set only when custom errors are needed; use it instead of standalone `error.*`.

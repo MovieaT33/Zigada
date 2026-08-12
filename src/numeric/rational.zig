@@ -16,12 +16,12 @@ pub const Rational = struct {
     denominator: BigInt,
 
     pub fn init(numerator: i64, denominator: i64) !*Self {
-        const alloc = getAllocator();
+        const _allocator = getAllocator();
 
         if (denominator == 0)
             return error.DivisionByZero;
 
-        const self = try alloc.create(Self);
+        const self = try _allocator.create(Self);
         errdefer self.deinit();
 
         self.* = .{
@@ -51,9 +51,9 @@ pub const Rational = struct {
     }
 
     pub fn fromBigInts(numerator: BigInt, denominator: BigInt) !*Self {
-        const alloc = getAllocator();
+        const _allocator = getAllocator();
 
-        const rational = try alloc.create(Self);
+        const rational = try _allocator.create(Self);
         errdefer rational.deinit();
 
         rational.* = .{
@@ -70,12 +70,12 @@ pub const Rational = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        const alloc = getAllocator();
+        const _allocator = getAllocator();
 
         self.numerator.deinit();
         self.denominator.deinit();
 
-        alloc.destroy(self);
+        _allocator.destroy(self);
     }
 
     pub fn clone(self: *const Self) !*Self {
@@ -274,6 +274,6 @@ pub const Rational = struct {
     }
 
     fn getAllocator() Allocator {
-        return allocator orelse unreachable;
+        return allocator orelse unreachable; // Allocator must be initialized
     }
 };

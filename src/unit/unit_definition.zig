@@ -112,10 +112,10 @@ pub fn UnitDefinition(comptime Numeric: type) type {
             constraint: Constraint,
             name: ?[]const u8,
         ) Allocator.Error!*Self {
-            const alloc = getAllocator();
+            const _allocator = getAllocator();
 
-            const self = try alloc.create(Self);
-            errdefer alloc.destroy(self);
+            const self = try _allocator.create(Self);
+            errdefer _allocator.destroy(self);
 
             self.* = .{
                 .numerator = .empty,
@@ -134,12 +134,17 @@ pub fn UnitDefinition(comptime Numeric: type) type {
         }
 
         pub fn deinit(self: *Self) void {
-            const alloc = getAllocator();
+            const _allocator = getAllocator();
 
-            self.numerator.deinit(alloc);
-            self.denominator.deinit(alloc);
+            self.numerator.deinit(_allocator);
+            self.denominator.deinit(_allocator);
 
-            alloc.destroy(self);
+            _allocator.destroy(self);
+        }
+
+        pub fn unadopt(self: *Self) void {
+            if (unit_registry) |registry|
+                registry.unadopt(self);
         }
 
         pub fn clone(
@@ -155,9 +160,10 @@ pub fn UnitDefinition(comptime Numeric: type) type {
             );
         }
 
-        pub fn eql(lhs: Self, rhs: Self) bool {
+        pub fn eql(lhs: Self, rhs: Self) !bool {
             return factorsEql(.numerator, lhs, rhs) and
-                factorsEql(.denominator, lhs, rhs);
+                factorsEql(.denominator, lhs, rhs) and
+                try constraintsEql(lhs.constraint, rhs.constraint);
         }
 
         fn factorsEql(
@@ -198,12 +204,28 @@ pub fn UnitDefinition(comptime Numeric: type) type {
             return true;
         }
 
+        fn constraintsEql(lhs: Constraint, rhs: Constraint) !bool {
+            return try optionalNumericEql(lhs.min, rhs.min) and
+                try optionalNumericEql(lhs.max, rhs.max);
+        }
+
+        fn optionalNumericEql(lhs: ?*const Numeric, rhs: ?*const Numeric) !bool {
+            if (lhs) |lhs_value| {
+                if (rhs) |rhs_value|
+                    return try lhs_value.eql(rhs_value);
+
+                return false;
+            }
+
+            return rhs == null;
+        }
+
         fn addFactor(
             self: *Self,
             side: FactorSide,
             factor: UnitFactor,
         ) Allocator.Error!void {
-            const alloc = getAllocator();
+            const _allocator = getAllocator();
 
             const factors = switch (side) {
                 .numerator => &self.numerator,
@@ -217,7 +239,7 @@ pub fn UnitDefinition(comptime Numeric: type) type {
                 }
             }
 
-            try factors.append(alloc, factor);
+            try factors.append(_allocator, factor);
         }
 
         fn addFactors(
@@ -296,6 +318,10 @@ pub fn UnitDefinition(comptime Numeric: type) type {
             rhs: *const Self,
             constraint: Constraint,
             name: ?[]const u8,
+            // WARNING: When using `existing`, the returned definition is the same object
+            // as `existing`. Do not modify either definition afterward, as they share
+            // the same object and modifying one will modify the other.
+            existing: ?*Self,
         ) Allocator.Error!*Self {
             var definition = try lhs.clone(
                 constraint,
@@ -305,7 +331,7 @@ pub fn UnitDefinition(comptime Numeric: type) type {
             const rhs_side: FactorSide = switch (operation) {
                 .mul => .numerator,
                 .div => .denominator,
-                else => unreachable,
+                else => unreachable, // Unsupported operation
             };
 
             try definition.addFactors(
@@ -321,6 +347,16 @@ pub fn UnitDefinition(comptime Numeric: type) type {
             if (cross_cancellation)
                 definition.crossCancel();
 
+            if (existing) |existing_definition| {
+                if (try existing_definition.eql(definition.*)) {
+                    definition.unadopt();
+                    definition.deinit();
+                    return existing_definition;
+                } else {
+                    unreachable; // Definitions must match
+                }
+            }
+
             return definition;
         }
 
@@ -330,6 +366,7 @@ pub fn UnitDefinition(comptime Numeric: type) type {
             rhs: *const Self,
             constraint: Constraint,
             name: ?[]const u8,
+            existing: ?*Self,
         ) Allocator.Error!*Self {
             return combine(
                 .mul,
@@ -338,6 +375,7 @@ pub fn UnitDefinition(comptime Numeric: type) type {
                 rhs,
                 constraint,
                 name,
+                existing,
             );
         }
 
@@ -347,6 +385,7 @@ pub fn UnitDefinition(comptime Numeric: type) type {
             rhs: *const Self,
             constraint: Constraint,
             name: ?[]const u8,
+            existing: ?*Self,
         ) Allocator.Error!*Self {
             return combine(
                 .div,
@@ -355,6 +394,7 @@ pub fn UnitDefinition(comptime Numeric: type) type {
                 rhs,
                 constraint,
                 name,
+                existing,
             );
         }
 
@@ -420,7 +460,7 @@ pub fn UnitDefinition(comptime Numeric: type) type {
         }
 
         fn getAllocator() Allocator {
-            return allocator orelse unreachable;
+            return allocator orelse unreachable; // Allocator must be initialized
         }
     };
 }
