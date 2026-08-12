@@ -5,7 +5,7 @@ const UnitRegistry = @import("unit_registry.zig").UnitRegistry;
 
 const Allocator = std.mem.Allocator;
 
-pub fn UnitDefinition(comptime N: type) type {
+pub fn UnitDefinition(comptime Numeric: type) type {
     return struct {
         const Self = @This();
 
@@ -44,17 +44,31 @@ pub fn UnitDefinition(comptime N: type) type {
         };
 
         pub const Constraint = struct {
-            min: ?*N = null,
-            max: ?*N = null,
+            min: ?*Numeric = null,
+            max: ?*Numeric = null,
 
-            pub fn init(min: ?*N, max: ?*N) @This() {
+            pub fn init(min: ?*Numeric, max: ?*Numeric) @This() {
                 return .{
                     .min = min,
                     .max = max,
                 };
             }
 
-            pub fn validate(self: *const @This(), value: *const N) !void {
+            pub fn clone(self: *const @This()) !@This() {
+                return .{
+                    .min = if (self.min) |min|
+                        try min.clone()
+                    else
+                        null,
+
+                    .max = if (self.max) |max|
+                        try max.clone()
+                    else
+                        null,
+                };
+            }
+
+            pub fn validate(self: *const @This(), value: *const Numeric) !void {
                 if (self.min) |min|
                     if (try value.lessThan(min))
                         return error.BelowMinimum;
@@ -85,7 +99,7 @@ pub fn UnitDefinition(comptime N: type) type {
         };
 
         pub var allocator: ?Allocator = null;
-        pub var unit_registry: ?*UnitRegistry(N) = null;
+        pub var unit_registry: ?*UnitRegistry(Self) = null;
 
         numerator: std.ArrayList(UnitFactor),
         denominator: std.ArrayList(UnitFactor),

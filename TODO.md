@@ -1,2 +1,2 @@
 - Review `big_int.zig`
-- Add physics.zig (kinematics, statics, mechanics)
+- Add `kinematics.zig`, `statics.zig`, `mechanics.zig`

@@ -6,21 +6,22 @@ const QuantityRegistry = @import("quantity_registry.zig").QuantityRegistry;
 
 const Allocator = std.mem.Allocator;
 
-pub fn Quantity(comptime N: type) type {
-    const Constraint = UnitDefinition(N).Constraint;
+pub fn Quantity(comptime Numeric: type) type {
+    const NumericDefinition = UnitDefinition(Numeric);
+    const Constraint = UnitDefinition(Numeric).Constraint;
 
     return struct {
         const Self = @This();
 
         pub var allocator: ?Allocator = null;
-        pub var quantity_registry: ?*QuantityRegistry(N) = null;
+        pub var quantity_registry: ?*QuantityRegistry(Self) = null;
 
-        value: *const N,
-        definition: *const UnitDefinition(N),
+        value: *const Numeric,
+        definition: *const NumericDefinition,
 
         pub fn init(
-            value: *const N,
-            definition: *const UnitDefinition(N),
+            value: *const Numeric,
+            definition: *const NumericDefinition,
         ) !*Self {
             const alloc = getAllocator();
 
@@ -52,7 +53,7 @@ pub fn Quantity(comptime N: type) type {
             if (!lhs.definition.eql(rhs.definition.*))
                 unreachable;
 
-            const value: *N = switch (operation) {
+            const value: *Numeric = switch (operation) {
                 .add => try .add(lhs.value, rhs.value),
                 .sub => try .sub(lhs.value, rhs.value),
                 else => unreachable,
@@ -67,9 +68,9 @@ pub fn Quantity(comptime N: type) type {
         pub fn scaleValue(
             comptime operation: Operation,
             lhs: *const Self,
-            rhs: *const N,
+            rhs: *const Numeric,
         ) !Self {
-            const value: *N = switch (operation) {
+            const value: *Numeric = switch (operation) {
                 .mul => try .mul(lhs.value, rhs),
                 .div => try .div(lhs.value, rhs),
             };
@@ -88,7 +89,7 @@ pub fn Quantity(comptime N: type) type {
             constraint: Constraint,
             name: ?[]const u8,
         ) !*Self {
-            const definition: *UnitDefinition(N) = try .combine(
+            const definition: *NumericDefinition = try .combine(
                 operation,
                 cross_cancellation,
                 lhs.definition,
@@ -97,7 +98,7 @@ pub fn Quantity(comptime N: type) type {
                 name,
             );
 
-            const value: *N = switch (operation) {
+            const value: *Numeric = switch (operation) {
                 .mul => try .mul(lhs.value, rhs.value),
                 .div => try .div(lhs.value, rhs.value),
                 else => unreachable,
@@ -117,11 +118,11 @@ pub fn Quantity(comptime N: type) type {
             return operate(.sub, lhs, rhs);
         }
 
-        pub fn scale(lhs: *const Self, rhs: *const N) !*Self {
+        pub fn scale(lhs: *const Self, rhs: *const Numeric) !*Self {
             return scaleValue(.mul, lhs, rhs);
         }
 
-        pub fn unscale(lhs: *const Self, rhs: *const N) !*Self {
+        pub fn unscale(lhs: *const Self, rhs: *const Numeric) !*Self {
             return scaleValue(.div, lhs, rhs);
         }
 

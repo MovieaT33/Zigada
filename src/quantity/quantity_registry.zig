@@ -1,15 +1,13 @@
 const std = @import("std");
 
-const Quantity = @import("quantity.zig").Quantity;
-
 const Allocator = std.mem.Allocator;
 
-pub fn QuantityRegistry(comptime N: type) type {
+pub fn QuantityRegistry(comptime Quantity: type) type {
     return struct {
         const Self = @This();
 
         allocator: Allocator,
-        quantities: std.ArrayList(*Quantity(N)),
+        quantities: std.ArrayList(*Quantity),
 
         pub fn init(allocator: Allocator) Self {
             return .{
@@ -27,7 +25,7 @@ pub fn QuantityRegistry(comptime N: type) type {
 
         pub fn adopt(
             self: *Self,
-            quantity: *Quantity(N),
+            quantity: *Quantity,
         ) Allocator.Error!void {
             try self.quantities.append(self.allocator, quantity);
         }

@@ -3,9 +3,9 @@ const std = @import("std");
 const BigInt = @import("numeric/big_int.zig").BigInt;
 const Rational = @import("numeric/rational.zig").Rational;
 const RationalRegistry = @import("numeric/rational_registry.zig").RationalRegistry;
+const Physics = @import("physics.zig").Physics;
 const Quantity = @import("quantity/quantity.zig").Quantity;
 const QuantityRegistry = @import("quantity/quantity_registry.zig").QuantityRegistry;
-const SI = @import("unit/si.zig").SI;
 const UnitDefinition = @import("unit/unit_definition.zig").UnitDefinition;
 const UnitRegistry = @import("unit/unit_registry.zig").UnitRegistry;
 
@@ -19,38 +19,43 @@ pub fn main(init: std.process.Init) !void {
 
     const allocator = gpa.allocator();
 
-    var unit_registry: UnitRegistry(Rational) = .init(allocator);
+    const RationalDefinition = UnitDefinition(Rational);
+    const RationalQuantity = Quantity(Rational);
+
+    var unit_registry: UnitRegistry(RationalDefinition) = .init(allocator);
     defer unit_registry.deinit();
+
+    var quantity_registry: QuantityRegistry(RationalQuantity) = .init(allocator);
+    defer quantity_registry.deinit();
 
     var rational_registry: RationalRegistry = .init(allocator);
     defer rational_registry.deinit();
 
-    var quantity_registry: QuantityRegistry(Rational) = .init(allocator);
-    defer quantity_registry.deinit();
-
-    BigInt.allocator = allocator;
-
-    const RationalDefinition = UnitDefinition(Rational);
     RationalDefinition.allocator = allocator;
     RationalDefinition.unit_registry = &unit_registry;
+
+    RationalQuantity.allocator = allocator;
+    RationalQuantity.quantity_registry = &quantity_registry;
+
+    BigInt.allocator = allocator;
 
     Rational.allocator = allocator;
     Rational.rational_registry = &rational_registry;
 
-    const zero: *Rational = try .init(0, 1);
-
-    const RationalQuantity = Quantity(Rational);
-    RationalQuantity.allocator = allocator;
-    RationalQuantity.quantity_registry = &quantity_registry;
-
     const non_negative: RationalDefinition.Constraint = .init(
-        zero,
+        try Rational.init(0, 1),
         null,
     );
 
-    const si = try SI(RationalDefinition).create(non_negative);
+    const RationalPhysics = Physics(Rational);
+    const RationalSI = RationalPhysics.NumericSI;
+    const RationalDynamics = RationalPhysics.NumericDynamics;
 
-    const velocity = try RationalDefinition.div(
+    const si = try RationalSI.create(non_negative);
+
+    RationalDynamics.non_negative = try non_negative.clone();
+
+    const velocity: *RationalDefinition = try .div(
         false,
         si.meter,
         si.second,
@@ -104,13 +109,7 @@ pub fn main(init: std.process.Init) !void {
         "acceleration",
     );
 
-    const force: *RationalQuantity = try .mul(
-        false,
-        mass,
-        acceleration,
-        non_negative,
-        "force",
-    );
+    const force = try RationalDynamics.force(mass, acceleration);
 
     const pressure: *RationalQuantity = try .div(
         true,

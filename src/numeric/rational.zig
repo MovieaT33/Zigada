@@ -78,6 +78,19 @@ pub const Rational = struct {
         alloc.destroy(self);
     }
 
+    pub fn clone(self: *const Self) !*Self {
+        var numerator = try self.numerator.clone();
+        errdefer numerator.deinit();
+
+        var denominator = try self.denominator.clone();
+        errdefer denominator.deinit();
+
+        return fromBigInts(
+            numerator,
+            denominator,
+        );
+    }
+
     pub fn cmp(
         lhs: *const Self,
         rhs: *const Self,

@@ -1,15 +1,13 @@
 const std = @import("std");
 
-const UnitDefinition = @import("unit_definition.zig").UnitDefinition;
-
 const Allocator = std.mem.Allocator;
 
-pub fn UnitRegistry(comptime N: type) type {
+pub fn UnitRegistry(comptime Definition: type) type {
     return struct {
         const Self = @This();
 
         allocator: Allocator,
-        definitions: std.ArrayList(*UnitDefinition(N)),
+        definitions: std.ArrayList(*Definition),
 
         pub fn init(allocator: Allocator) Self {
             return .{
@@ -27,7 +25,7 @@ pub fn UnitRegistry(comptime N: type) type {
 
         pub fn adopt(
             self: *Self,
-            definition: *UnitDefinition(N),
+            definition: *Definition,
         ) Allocator.Error!void {
             try self.definitions.append(self.allocator, definition);
         }
