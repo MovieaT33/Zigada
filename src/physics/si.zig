@@ -38,12 +38,6 @@ pub fn SI(comptime Definition: type) type {
                     non_negative,
                     "si/" ++ info[1],
                 );
-
-                errdefer {
-                    inline for (std.meta.fields(Self)[0..i]) |created| {
-                        @field(self, created.name).deinit();
-                    }
-                }
             }
 
             return self;
