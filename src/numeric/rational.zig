@@ -368,15 +368,13 @@ pub const Rational = struct {
 
     pub fn write(
         self: *const Self,
-        io: std.Io,
-    ) !void {
-        try self.numerator.write(io);
-
-        const stdout: std.Io.File = .stdout();
+        writer: *std.Io.Writer,
+    ) std.Io.Writer.Error!void {
+        try self.numerator.write(writer);
 
         if (!self.denominator.isOne()) {
-            try stdout.writePositionalAll(io, "/", 0);
-            try self.denominator.write(io);
+            try writer.writeByte('/');
+            try self.denominator.write(writer);
         }
     }
 

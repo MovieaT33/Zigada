@@ -624,17 +624,12 @@ pub const BigInt = struct {
 
     pub fn write(
         self: *const BigInt,
-        io: std.Io,
-    ) !void {
-        const stdout: std.Io.File = .stdout();
-
+        writer: *std.Io.Writer,
+    ) std.Io.Writer.Error!void {
         if (self.isZero()) {
-            try stdout.writePositionalAll(io, "0", 0);
+            try writer.writeByte('0');
             return;
         }
-
-        var buffer: [64]u8 = undefined; // TODO: review
-        var writer = std.Io.Writer.fixed(&buffer);
 
         if (self.negative)
             try writer.writeByte('-');
@@ -652,7 +647,5 @@ pub const BigInt = struct {
                 try writer.print("{:0>20}", .{limb});
             }
         }
-
-        try stdout.writePositionalAll(io, writer.buffered(), 0);
     }
 };

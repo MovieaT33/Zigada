@@ -34,13 +34,11 @@ pub fn UnitRegistry(comptime N: type) type {
 
         pub fn write(
             self: *const Self,
-            io: std.Io,
-        ) !void {
-            const stdout: std.Io.File = .stdout();
-
+            writer: *std.Io.Writer,
+        ) std.Io.Writer.Error!void {
             for (self.definitions.items) |definition| {
-                try definition.write(io);
-                try stdout.writePositionalAll(io, "\n", 0);
+                try definition.write(writer);
+                try writer.writeByte('\n');
             }
         }
     };

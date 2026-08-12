@@ -15,44 +15,30 @@ pub fn UnitDefinition(comptime N: type) type {
 
             pub fn appendPower(
                 self: *const @This(),
-                text: *std.ArrayList(u8),
-            ) !void {
-                const alloc = getAllocator();
-
-                var print_buffer: [4]u8 = undefined; // "^255"
-
-                const power_text = try std.fmt.bufPrint(
-                    &print_buffer,
-                    "^{}",
-                    .{self.power},
-                );
-
-                try text.appendSlice(alloc, power_text);
+                writer: *std.Io.Writer,
+            ) std.Io.Writer.Error!void {
+                try writer.print("^{}", .{self.power});
             }
 
             pub fn appendText(
                 self: *const @This(),
-                text: *std.ArrayList(u8),
-            ) !void {
-                const alloc = getAllocator();
-
-                try text.appendSlice(alloc, self.unit);
+                writer: *std.Io.Writer,
+            ) std.Io.Writer.Error!void {
+                try writer.print("{s}", .{self.unit});
 
                 if (self.power != 1)
-                    try self.appendPower(text);
+                    try self.appendPower(writer);
             }
 
             pub fn appendFactors(
-                text: *std.ArrayList(u8),
+                writer: *std.Io.Writer,
                 factors: []const @This(),
             ) !void {
-                const alloc = getAllocator();
-
                 for (factors, 0..) |factor, index| {
                     if (index != 0)
-                        try text.append(alloc, '*');
+                        try writer.writeByte('*');
 
-                    try factor.appendText(text);
+                    try factor.appendText(writer);
                 }
             }
         };
@@ -312,50 +298,32 @@ pub fn UnitDefinition(comptime N: type) type {
             return definition;
         }
 
-        pub fn toText(self: *const Self) !std.ArrayList(u8) {
-            const alloc = getAllocator();
-
-            var text: std.ArrayList(u8) = .empty;
-            errdefer text.deinit(alloc);
-
-            try self.appendNumerator(&text);
-            try self.appendDenominator(&text);
-
-            return text;
-        }
-
         pub fn write(
             self: *const Self,
-            io: std.Io,
-        ) !void {
-            try self.writeName(io);
-            try self.writeUnits(io);
+            writer: *std.Io.Writer,
+        ) std.Io.Writer.Error!void {
+            if (self.name != null) {
+                try self.writeName(writer);
+                try writer.writeAll(" = ");
+            }
+
+            try self.writeUnits(writer);
         }
 
         pub fn writeName(
             self: *const Self,
-            io: std.Io,
-        ) std.Io.File.WriteFilePositionalError!void {
-            var stdout: std.Io.File = .stdout();
-
-            if (self.name) |name| {
-                try stdout.writePositionalAll(io, "[", 0);
-                try stdout.writePositionalAll(io, name, 0);
-                try stdout.writePositionalAll(io, "] = ", 0);
-            }
+            writer: *std.Io.Writer,
+        ) std.Io.Writer.Error!void {
+            if (self.name) |name|
+                try writer.print("[{s}]", .{name});
         }
 
         pub fn writeUnits(
             self: *const Self,
-            io: std.Io,
-        ) !void {
-            const alloc = getAllocator();
-
-            var text = try self.toText();
-            defer text.deinit(alloc);
-
-            var stdout: std.Io.File = .stdout();
-            try stdout.writePositionalAll(io, text.items, 0);
+            writer: *std.Io.Writer,
+        ) std.Io.Writer.Error!void {
+            try self.appendNumerator(writer);
+            try self.appendDenominator(writer);
         }
 
         fn getAllocator() Allocator {
@@ -422,37 +390,35 @@ pub fn UnitDefinition(comptime N: type) type {
 
         fn appendNumerator(
             self: *const Self,
-            text: *std.ArrayList(u8),
-        ) !void {
+            writer: *std.Io.Writer,
+        ) std.Io.Writer.Error!void {
             try UnitFactor.appendFactors(
-                text,
+                writer,
                 self.numerator.items,
             );
         }
 
         fn appendDenominator(
             self: *const Self,
-            text: *std.ArrayList(u8),
-        ) !void {
-            const alloc = getAllocator();
-
+            writer: *std.Io.Writer,
+        ) std.Io.Writer.Error!void {
             if (self.denominator.items.len == 0)
                 return;
 
-            try text.append(alloc, '/');
+            try writer.writeByte('/');
 
             const parenthesize = self.denominator.items.len > 1;
 
             if (parenthesize)
-                try text.append(alloc, '(');
+                try writer.writeByte('(');
 
             try UnitFactor.appendFactors(
-                text,
+                writer,
                 self.denominator.items,
             );
 
             if (parenthesize)
-                try text.append(alloc, ')');
+                try writer.writeByte(')');
         }
     };
 }

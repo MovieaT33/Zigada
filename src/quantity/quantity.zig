@@ -159,13 +159,11 @@ pub fn Quantity(comptime N: type) type {
 
         pub fn write(
             self: *const Self,
-            io: std.Io,
-        ) !void {
-            try self.value.write(io);
-
-            const stdout: std.Io.File = .stdout();
-            try stdout.writePositionalAll(io, " ", 0);
-            try self.definition.writeUnits(io);
+            writer: *std.Io.Writer,
+        ) std.Io.Writer.Error!void {
+            try self.value.write(writer);
+            try writer.writeByte(' ');
+            try self.definition.writeUnits(writer);
         }
 
         fn getAllocator() Allocator {

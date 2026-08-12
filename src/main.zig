@@ -119,7 +119,12 @@ pub fn main(init: std.process.Init) !void {
 
     _ = pressure;
 
-    try unit_registry.write(io);
-    try rational_registry.write(io);
-    try quantity_registry.write(io);
+    var stdout_writer = std.Io.File.stdout().writer(io, &.{});
+    const writer_interface = &stdout_writer.interface;
+
+    try unit_registry.write(writer_interface);
+    try writer_interface.writeByte('\n');
+    try rational_registry.write(writer_interface);
+    try writer_interface.writeByte('\n');
+    try quantity_registry.write(writer_interface);
 }

@@ -33,13 +33,11 @@ pub const RationalRegistry = struct {
 
     pub fn write(
         self: *const Self,
-        io: std.Io,
-    ) !void {
-        const stdout: std.Io.File = .stdout();
-
+        writer: *std.Io.Writer,
+    ) std.Io.Writer.Error!void {
         for (self.rationals.items) |rational| {
-            try rational.write(io);
-            try stdout.writePositionalAll(io, "\n", 0);
+            try rational.write(writer);
+            try writer.writeByte('\n');
         }
     }
 };
