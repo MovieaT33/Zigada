@@ -95,24 +95,7 @@ pub fn Quantity(comptime N: type) type {
             );
         }
 
-        pub fn write(
-            self: *const Self,
-            io: *const std.Io,
-        ) !void {
-            try self.value.writeValue(io);
-
-            const stdout: std.Io.File = .stdout();
-
-            try stdout.writePositionalAll(io.*, " ", 0);
-            try self.definition.writeUnits(io);
-            try stdout.writePositionalAll(io.*, "\n", 0);
-        }
-
-        fn getAllocator() Allocator {
-            return allocator orelse unreachable;
-        }
-
-        fn operate(
+        pub fn operate(
             comptime operation: Operation,
             left: *const Self,
             right: *const Self,
@@ -131,7 +114,7 @@ pub fn Quantity(comptime N: type) type {
             return try init(value, left.definition);
         }
 
-        fn scaleValue(
+        pub fn scaleValue(
             comptime operation: Operation,
             left: *const Self,
             right: *const N,
@@ -146,7 +129,7 @@ pub fn Quantity(comptime N: type) type {
             return try init(value, left.definition);
         }
 
-        fn combine(
+        pub fn combine(
             comptime operation: Operation,
             comptime cross_cancellation: bool,
             left: *const Self,
@@ -172,6 +155,23 @@ pub fn Quantity(comptime N: type) type {
             try definition.constraint.validate(value);
 
             return try init(value, definition);
+        }
+
+        pub fn write(
+            self: *const Self,
+            io: std.Io,
+        ) !void {
+            try self.value.write(io);
+
+            const stdout: std.Io.File = .stdout();
+
+            try stdout.writePositionalAll(io, " ", 0);
+            try self.definition.writeUnits(io);
+            try stdout.writePositionalAll(io, "\n", 0);
+        }
+
+        fn getAllocator() Allocator {
+            return allocator orelse unreachable;
         }
     };
 }

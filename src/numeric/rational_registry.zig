@@ -30,4 +30,16 @@ pub const RationalRegistry = struct {
     ) Allocator.Error!void {
         try self.rationals.append(self.allocator, rational);
     }
+
+    pub fn write(
+        self: *const Self,
+        io: std.Io,
+    ) !void {
+        const stdout: std.Io.File = .stdout();
+
+        for (self.rationals.items) |rational| {
+            try rational.write(io);
+            try stdout.writePositionalAll(io, "\n", 0);
+        }
+    }
 };

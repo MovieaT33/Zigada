@@ -119,6 +119,7 @@ pub fn main(init: std.process.Init) !void {
 
     _ = pressure;
 
-    try quantity_registry.write(&io);
-    try unit_registry.write(&io);
+    try unit_registry.write(io);
+    try rational_registry.write(io);
+    try quantity_registry.write(io);
 }

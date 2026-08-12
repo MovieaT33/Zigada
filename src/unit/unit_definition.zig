@@ -246,38 +246,6 @@ pub fn UnitDefinition(comptime N: type) type {
             }
         }
 
-        pub fn combine(
-            comptime operation: Operation,
-            comptime cross_cancellation: bool,
-            left: *const Self,
-            right: *const Self,
-            constraint: Constraint,
-            name: ?[]const u8,
-        ) Allocator.Error!*Self {
-            var definition = try left.clone(constraint, name);
-
-            const right_side: FactorSide = switch (operation) {
-                .mul => .numerator,
-                .div => .denominator,
-                else => unreachable,
-            };
-
-            try definition.addFactors(
-                right_side,
-                right.numerator.items,
-            );
-
-            try definition.addFactors(
-                right_side.opposite(),
-                right.denominator.items,
-            );
-
-            if (cross_cancellation)
-                definition.crossCancel();
-
-            return definition;
-        }
-
         pub fn mul(
             comptime cross_cancellation: bool,
             left: *const Self,
@@ -312,6 +280,38 @@ pub fn UnitDefinition(comptime N: type) type {
             );
         }
 
+        pub fn combine(
+            comptime operation: Operation,
+            comptime cross_cancellation: bool,
+            left: *const Self,
+            right: *const Self,
+            constraint: Constraint,
+            name: ?[]const u8,
+        ) Allocator.Error!*Self {
+            var definition = try left.clone(constraint, name);
+
+            const right_side: FactorSide = switch (operation) {
+                .mul => .numerator,
+                .div => .denominator,
+                else => unreachable,
+            };
+
+            try definition.addFactors(
+                right_side,
+                right.numerator.items,
+            );
+
+            try definition.addFactors(
+                right_side.opposite(),
+                right.denominator.items,
+            );
+
+            if (cross_cancellation)
+                definition.crossCancel();
+
+            return definition;
+        }
+
         pub fn toText(self: *const Self) !std.ArrayList(u8) {
             const alloc = getAllocator();
 
@@ -326,20 +326,20 @@ pub fn UnitDefinition(comptime N: type) type {
 
         pub fn writeName(
             self: *const Self,
-            io: *const std.Io,
+            io: std.Io,
         ) std.Io.File.WriteFilePositionalError!void {
             var stdout: std.Io.File = .stdout();
 
             if (self.name) |name| {
-                try stdout.writePositionalAll(io.*, "[", 0);
-                try stdout.writePositionalAll(io.*, name, 0);
-                try stdout.writePositionalAll(io.*, "] = ", 0);
+                try stdout.writePositionalAll(io, "[", 0);
+                try stdout.writePositionalAll(io, name, 0);
+                try stdout.writePositionalAll(io, "] = ", 0);
             }
         }
 
         pub fn writeUnits(
             self: *const Self,
-            io: *const std.Io,
+            io: std.Io,
         ) !void {
             const alloc = getAllocator();
 
@@ -347,18 +347,18 @@ pub fn UnitDefinition(comptime N: type) type {
             defer text.deinit(alloc);
 
             var stdout: std.Io.File = .stdout();
-            try stdout.writePositionalAll(io.*, text.items, 0);
+            try stdout.writePositionalAll(io, text.items, 0);
         }
 
         pub fn write(
             self: *const Self,
-            io: *const std.Io,
+            io: std.Io,
         ) !void {
             try self.writeName(io);
             try self.writeUnits(io);
 
             var stdout: std.Io.File = .stdout();
-            try stdout.writePositionalAll(io.*, "\n", 0);
+            try stdout.writePositionalAll(io, "\n", 0);
         }
 
         fn getAllocator() Allocator {

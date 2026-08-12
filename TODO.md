@@ -1,5 +1,6 @@
+- TODOs
+- Use `Writer` instead of `std.Io.File.stdout()`
 - Review `ration.zig`, `big_int.zig`
 - Remove unused functions
-- Use `Writer` instead of `std.Io.File.stdout()`
 - Add `writeFloat` to `ration.zig`
 - Add physics.zig (kinematics, statics, mechanics)

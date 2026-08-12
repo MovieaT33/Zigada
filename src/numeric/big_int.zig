@@ -65,7 +65,7 @@ pub const BigInt = struct {
             order;
     }
 
-    fn eql(a: *const BigInt, b: *const BigInt) bool {
+    pub fn eql(a: *const BigInt, b: *const BigInt) bool {
         return cmp(a, b) == .eq;
     }
 
@@ -622,14 +622,14 @@ pub const BigInt = struct {
         return x;
     }
 
-    pub fn writeValue(
+    pub fn write(
         self: *const BigInt,
-        io: *const std.Io,
+        io: std.Io,
     ) !void {
-        const stdout = std.Io.File.stdout();
+        const stdout: std.Io.File = .stdout();
 
         if (self.isZero()) {
-            try stdout.writePositionalAll(io.*, "0", 0);
+            try stdout.writePositionalAll(io, "0", 0);
             return;
         }
 
@@ -653,10 +653,6 @@ pub const BigInt = struct {
             }
         }
 
-        try stdout.writePositionalAll(
-            io.*,
-            writer.buffered(),
-            0,
-        );
+        try stdout.writePositionalAll(io, writer.buffered(), 0);
     }
 };

@@ -18,18 +18,18 @@ pub const Rational = struct {
         numerator: i64,
         denominator: i64,
     ) !*Self {
+        const alloc = getAllocator();
+
         if (denominator == 0)
             return error.DivisionByZero;
 
-        const alloc = getAllocator();
-
         const self = try alloc.create(Self);
+        errdefer self.deinit();
 
         self.* = .{
             .numerator = BigInt.init(alloc),
             .denominator = BigInt.init(alloc),
         };
-        errdefer self.deinit();
 
         try self.numerator.setSigned(numerator);
 
@@ -366,21 +366,18 @@ pub const Rational = struct {
         return result;
     }
 
-    pub fn writeValue(
+    pub fn write(
         self: *const Self,
-        io: *const std.Io,
+        io: std.Io,
     ) !void {
-        try self.numerator.writeValue(io);
+        try self.numerator.write(io);
 
         const stdout: std.Io.File = .stdout();
 
-        try stdout.writePositionalAll(
-            io.*,
-            "/",
-            0,
-        );
-
-        try self.denominator.writeValue(io);
+        if (!self.denominator.isOne()) {
+            try stdout.writePositionalAll(io, "/", 0);
+            try self.denominator.write(io);
+        }
     }
 
     fn getAllocator() Allocator {

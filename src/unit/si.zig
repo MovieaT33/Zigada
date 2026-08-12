@@ -14,9 +14,7 @@ pub fn SI(comptime D: type) type {
         mole: *D,
         candela: *D,
 
-        pub fn create(
-            non_negative: D.Constraint,
-        ) Allocator.Error!Self {
+        pub fn create(non_negative: D.Constraint) Allocator.Error!Self {
             var second: *D = try .init(
                 &.{.{ .unit = "s", .power = 1 }},
                 &.{},
