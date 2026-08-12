@@ -164,10 +164,8 @@ pub fn Quantity(comptime N: type) type {
             try self.value.write(io);
 
             const stdout: std.Io.File = .stdout();
-
             try stdout.writePositionalAll(io, " ", 0);
             try self.definition.writeUnits(io);
-            try stdout.writePositionalAll(io, "\n", 0);
         }
 
         fn getAllocator() Allocator {

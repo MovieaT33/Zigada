@@ -324,6 +324,14 @@ pub fn UnitDefinition(comptime N: type) type {
             return text;
         }
 
+        pub fn write(
+            self: *const Self,
+            io: std.Io,
+        ) !void {
+            try self.writeName(io);
+            try self.writeUnits(io);
+        }
+
         pub fn writeName(
             self: *const Self,
             io: std.Io,
@@ -348,17 +356,6 @@ pub fn UnitDefinition(comptime N: type) type {
 
             var stdout: std.Io.File = .stdout();
             try stdout.writePositionalAll(io, text.items, 0);
-        }
-
-        pub fn write(
-            self: *const Self,
-            io: std.Io,
-        ) !void {
-            try self.writeName(io);
-            try self.writeUnits(io);
-
-            var stdout: std.Io.File = .stdout();
-            try stdout.writePositionalAll(io, "\n", 0);
         }
 
         fn getAllocator() Allocator {

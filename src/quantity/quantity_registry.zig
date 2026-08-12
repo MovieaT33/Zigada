@@ -36,8 +36,12 @@ pub fn QuantityRegistry(comptime N: type) type {
             self: *const Self,
             io: std.Io,
         ) !void {
-            for (self.quantities.items) |quantity|
+            const stdout: std.Io.File = .stdout();
+
+            for (self.quantities.items) |quantity| {
                 try quantity.write(io);
+                try stdout.writePositionalAll(io, "\n", 0);
+            }
         }
     };
 }

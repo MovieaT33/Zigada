@@ -36,8 +36,12 @@ pub fn UnitRegistry(comptime N: type) type {
             self: *const Self,
             io: std.Io,
         ) !void {
-            for (self.definitions.items) |definition|
+            const stdout: std.Io.File = .stdout();
+
+            for (self.definitions.items) |definition| {
                 try definition.write(io);
+                try stdout.writePositionalAll(io, "\n", 0);
+            }
         }
     };
 }
