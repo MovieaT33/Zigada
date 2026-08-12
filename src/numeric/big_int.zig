@@ -3,53 +3,52 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const BigInt = struct {
+    const Self = @This();
+
     const Limb = u64;
     const Wide = u128;
 
+    allocator: Allocator,
     limbs: std.ArrayList(Limb),
     negative: bool,
-    allocator: Allocator,
 
-    pub fn init(allocator: Allocator) BigInt {
+    pub fn init(allocator: Allocator) Self {
         return .{
+            .allocator = allocator,
             .limbs = .empty,
             .negative = false,
-            .allocator = allocator,
         };
     }
 
-    pub fn deinit(self: *BigInt) void {
+    pub fn deinit(self: *Self) void {
         self.limbs.deinit(self.allocator);
     }
 
-    pub fn clone(
-        self: *const BigInt,
-        allocator: Allocator,
-    ) !BigInt {
-        var result = BigInt.init(allocator);
+    pub fn clone(self: *const Self) !Self {
+        var result = init(self.allocator);
         errdefer result.deinit();
 
         result.negative = self.negative;
 
         try result.limbs.appendSlice(
-            allocator,
+            self.allocator,
             self.limbs.items,
         );
 
         return result;
     }
 
-    pub fn isZero(self: *const BigInt) bool {
+    pub fn isZero(self: *const Self) bool {
         return self.limbs.items.len == 0;
     }
 
-    pub fn isOne(self: *const BigInt) bool {
+    pub fn isOne(self: *const Self) bool {
         return !self.negative and
             self.limbs.items.len == 1 and
             self.limbs.items[0] == 1;
     }
 
-    pub fn cmp(a: *const BigInt, b: *const BigInt) std.math.Order {
+    pub fn cmp(a: *const Self, b: *const Self) std.math.Order {
         if (a.negative != b.negative)
             return if (a.negative) .lt else .gt;
 
@@ -65,11 +64,7 @@ pub const BigInt = struct {
             order;
     }
 
-    pub fn eql(a: *const BigInt, b: *const BigInt) bool {
-        return cmp(a, b) == .eq;
-    }
-
-    pub fn normalize(self: *BigInt) void {
+    pub fn normalize(self: *Self) void {
         while (self.limbs.items.len > 0 and
             self.limbs.items[self.limbs.items.len - 1] == 0)
         {
@@ -81,7 +76,7 @@ pub const BigInt = struct {
     }
 
     pub fn setUnsigned(
-        self: *BigInt,
+        self: *Self,
         value: Limb,
     ) !void {
         self.limbs.clearRetainingCapacity();
@@ -90,14 +85,11 @@ pub const BigInt = struct {
         if (value == 0)
             return;
 
-        try self.limbs.append(
-            self.allocator,
-            value,
-        );
+        try self.limbs.append(self.allocator, value);
     }
 
     pub fn setSigned(
-        self: *BigInt,
+        self: *Self,
         value: i64,
     ) !void {
         const magnitude: u64 = if (value < 0)
@@ -111,15 +103,12 @@ pub const BigInt = struct {
         self.negative = value < 0 and !self.isZero();
     }
 
-    pub fn negate(self: *BigInt) void {
+    pub fn negate(self: *Self) void {
         if (!self.isZero())
             self.negative = !self.negative;
     }
 
-    fn cmpAbs(
-        a: *const BigInt,
-        b: *const BigInt,
-    ) std.math.Order {
+    fn cmpAbs(a: *const Self, b: *const Self) std.math.Order {
         if (a.limbs.items.len < b.limbs.items.len)
             return .lt;
 
@@ -142,11 +131,11 @@ pub const BigInt = struct {
     }
 
     fn addAbs(
-        a: *const BigInt,
-        b: *const BigInt,
         allocator: Allocator,
-    ) !BigInt {
-        var result = BigInt.init(allocator);
+        a: *const Self,
+        b: *const Self,
+    ) !Self {
+        var result = init(allocator);
         errdefer result.deinit();
 
         const max_len = @max(
@@ -192,11 +181,11 @@ pub const BigInt = struct {
     }
 
     fn subAbs(
-        a: *const BigInt,
-        b: *const BigInt,
         allocator: Allocator,
-    ) !BigInt {
-        var result = BigInt.init(allocator);
+        a: *const Self,
+        b: *const Self,
+    ) !Self {
+        var result = init(allocator);
         errdefer result.deinit();
 
         try result.limbs.ensureTotalCapacity(
@@ -239,31 +228,31 @@ pub const BigInt = struct {
     }
 
     pub fn add(
-        a: *const BigInt,
-        b: *const BigInt,
         allocator: Allocator,
-    ) !BigInt {
+        a: *const Self,
+        b: *const Self,
+    ) !Self {
         if (a.isZero())
-            return b.clone(allocator);
+            return b.clone();
 
         if (b.isZero())
-            return a.clone(allocator);
+            return a.clone();
 
         if (a.negative == b.negative) {
-            var result = try addAbs(a, b, allocator);
+            var result = try addAbs(allocator, a, b);
             result.negative = a.negative;
             return result;
         }
 
         return switch (cmpAbs(a, b)) {
-            .eq => BigInt.init(allocator),
+            .eq => init(allocator),
             .gt => blk: {
-                var result = try subAbs(a, b, allocator);
+                var result = try subAbs(allocator, a, b);
                 result.negative = a.negative;
                 break :blk result;
             },
             .lt => blk: {
-                var result = try subAbs(b, a, allocator);
+                var result = try subAbs(allocator, b, a);
                 result.negative = b.negative;
                 break :blk result;
             },
@@ -271,11 +260,11 @@ pub const BigInt = struct {
     }
 
     pub fn mul(
-        a: *const BigInt,
-        b: *const BigInt,
         allocator: Allocator,
-    ) !BigInt {
-        var result = BigInt.init(allocator);
+        a: *const Self,
+        b: *const Self,
+    ) !Self {
+        var result = init(allocator);
         errdefer result.deinit();
 
         if (a.isZero() or b.isZero())
@@ -325,31 +314,33 @@ pub const BigInt = struct {
     }
 
     pub fn mod(
-        a: *const BigInt,
-        b: *const BigInt,
         allocator: Allocator,
-    ) !BigInt {
+        a: *const Self,
+        b: *const Self,
+    ) !Self {
         if (b.isZero())
             return error.DivisionByZero;
 
-        var divisor = try b.clone(allocator);
-        defer divisor.deinit();
+        var divisor = try b.clone();
+        errdefer divisor.deinit();
 
         divisor.negative = false;
 
-        var dividend = try a.clone(allocator);
-        defer dividend.deinit();
+        var dividend = try a.clone();
+        errdefer dividend.deinit();
 
         dividend.negative = false;
 
-        var result = BigInt.init(allocator);
+        var result = init(allocator);
         errdefer result.deinit();
 
         if (dividend.isZero())
             return result;
 
-        if (cmpAbs(&dividend, &divisor) == .lt)
+        if (cmpAbs(&dividend, &divisor) == .lt) {
+            divisor.deinit();
             return dividend;
+        }
 
         try result.limbs.ensureTotalCapacity(
             allocator,
@@ -368,10 +359,10 @@ pub const BigInt = struct {
             while (bit_index > 0) {
                 bit_index -= 1;
 
-                try shiftLeftOne(&result, allocator);
+                try shiftLeftOne(&result);
 
                 if (((limb >> @as(u6, @intCast(bit_index))) & 1) != 0) {
-                    try addOne(&result, allocator);
+                    try addOne(&result);
                 }
 
                 if (cmpAbs(&result, &divisor) != .lt) {
@@ -380,13 +371,13 @@ pub const BigInt = struct {
             }
         }
 
+        dividend.deinit();
+        divisor.deinit();
+
         return result;
     }
 
-    fn shiftLeftOne(
-        self: *BigInt,
-        allocator: Allocator,
-    ) !void {
+    fn shiftLeftOne(self: *Self) !void {
         if (self.isZero())
             return;
 
@@ -400,36 +391,26 @@ pub const BigInt = struct {
         }
 
         if (carry != 0)
-            try self.limbs.append(allocator, carry);
+            try self.limbs.append(self.allocator, carry);
     }
 
-    fn addOne(
-        self: *BigInt,
-        allocator: Allocator,
-    ) !void {
+    fn addOne(self: *Self) !void {
         if (self.isZero()) {
-            try self.limbs.append(allocator, 1);
+            try self.limbs.append(self.allocator, 1);
             return;
         }
 
         for (self.limbs.items) |*limb| {
-            const old = limb.*;
-
             limb.* +%= 1;
 
             if (limb.* != 0)
                 return;
-
-            _ = old;
         }
 
-        try self.limbs.append(allocator, 1);
+        try self.limbs.append(self.allocator, 1);
     }
 
-    fn subAbsInPlace(
-        self: *BigInt,
-        other: *const BigInt,
-    ) void {
+    fn subAbsInPlace(self: *Self, other: *const Self) void {
         var borrow: Limb = 0;
 
         for (self.limbs.items, 0..) |*limb, i| {
@@ -460,20 +441,20 @@ pub const BigInt = struct {
     }
 
     pub fn div(
-        a: *const BigInt,
-        b: *const BigInt,
         allocator: Allocator,
+        a: *const Self,
+        b: *const Self,
     ) !struct {
-        quotient: BigInt,
-        remainder: BigInt,
+        quotient: Self,
+        remainder: Self,
     } {
         if (b.isZero())
             return error.DivisionByZero;
 
-        var quotient = BigInt.init(allocator);
+        var quotient = init(allocator);
         errdefer quotient.deinit();
 
-        var remainder = BigInt.init(allocator);
+        var remainder = init(allocator);
         errdefer remainder.deinit();
 
         if (a.isZero()) {
@@ -483,16 +464,16 @@ pub const BigInt = struct {
             };
         }
 
-        var dividend = try a.clone(allocator);
+        var dividend = try a.clone();
         defer dividend.deinit();
         dividend.negative = false;
 
-        var divisor = try b.clone(allocator);
+        var divisor = try b.clone();
         defer divisor.deinit();
         divisor.negative = false;
 
         if (cmpAbs(&dividend, &divisor) == .lt) {
-            remainder = try dividend.clone(allocator);
+            remainder = try dividend.clone();
 
             return .{
                 .quotient = quotient,
@@ -519,10 +500,7 @@ pub const BigInt = struct {
         while (bit_index > 0) {
             bit_index -= 1;
 
-            try shiftLeftOne(
-                &remainder,
-                allocator,
-            );
+            try shiftLeftOne(&remainder);
 
             const limb_index = bit_index / 64;
             const bit_in_limb: u6 =
@@ -533,10 +511,7 @@ pub const BigInt = struct {
                     bit_in_limb) & 1;
 
             if (bit != 0) {
-                try addOne(
-                    &remainder,
-                    allocator,
-                );
+                try addOne(&remainder);
             }
 
             if (cmpAbs(&remainder, &divisor) != .lt) {
@@ -569,13 +544,13 @@ pub const BigInt = struct {
 
     pub fn divExact(
         allocator: Allocator,
-        a: *const BigInt,
-        b: *const BigInt,
-    ) !BigInt {
+        a: *const Self,
+        b: *const Self,
+    ) !Self {
         var result = try div(
+            allocator,
             a,
             b,
-            allocator,
         );
 
         if (!result.remainder.isZero()) {
@@ -592,13 +567,13 @@ pub const BigInt = struct {
 
     pub fn gcd(
         allocator: Allocator,
-        a: *const BigInt,
-        b: *const BigInt,
-    ) !BigInt {
-        var x = try a.clone(allocator);
+        a: *const Self,
+        b: *const Self,
+    ) !Self {
+        var x = try a.clone();
         errdefer x.deinit();
 
-        var y = try b.clone(allocator);
+        var y = try b.clone();
         errdefer y.deinit();
 
         x.negative = false;
@@ -606,9 +581,9 @@ pub const BigInt = struct {
 
         while (!y.isZero()) {
             const remainder = try mod(
+                allocator,
                 &x,
                 &y,
-                allocator,
             );
 
             x.deinit();
@@ -623,7 +598,7 @@ pub const BigInt = struct {
     }
 
     pub fn write(
-        self: *const BigInt,
+        self: *const Self,
         writer: *std.Io.Writer,
     ) std.Io.Writer.Error!void {
         if (self.isZero()) {

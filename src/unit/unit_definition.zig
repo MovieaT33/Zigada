@@ -128,26 +128,6 @@ pub fn UnitDefinition(comptime N: type) type {
             alloc.destroy(self);
         }
 
-        pub fn copyFrom(
-            self: *Self,
-            source: *const Self,
-        ) Allocator.Error!void {
-            const alloc = getAllocator();
-
-            self.numerator.clearRetainingCapacity();
-            self.denominator.clearRetainingCapacity();
-
-            try self.numerator.appendSlice(
-                alloc,
-                source.numerator.items,
-            );
-
-            try self.denominator.appendSlice(
-                alloc,
-                source.denominator.items,
-            );
-        }
-
         pub fn clone(
             self: *const Self,
             constraint: Constraint,

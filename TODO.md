@@ -1,5 +1,4 @@
-- TODOs
 - Review `ration.zig`, `big_int.zig`
-- Remove unused functions
-- Add `writeFloat` to `ration.zig`
 - Add physics.zig (kinematics, statics, mechanics)
+
+- Remove this from `build.zig.zon`

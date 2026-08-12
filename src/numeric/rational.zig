@@ -1,5 +1,6 @@
 const std = @import("std");
 
+const Operation = @import("../operation.zig").Operation;
 const BigInt = @import("big_int.zig").BigInt;
 const RationalRegistry = @import("rational_registry.zig").RationalRegistry;
 
@@ -61,31 +62,42 @@ pub const Rational = struct {
         alloc.destroy(self);
     }
 
-    fn clone(self: *const Self) !*Self {
+    pub fn eql(a: *const Self, b: *const Self) bool {
+        return try cmp(a, b) == .eq;
+    }
+
+    pub fn lessThan(a: *const Self, b: *const Self) !bool {
+        return try cmp(a, b) == .lt;
+    }
+
+    pub fn greaterThan(a: *const Self, b: *const Self) !bool {
+        return try cmp(a, b) == .gt;
+    }
+
+    pub fn cmp(
+        a: *const Self,
+        b: *const Self,
+    ) !std.math.Order {
         const alloc = getAllocator();
 
-        const copy = try alloc.create(Self);
-        errdefer alloc.destroy(copy);
+        var left = try BigInt.mul(
+            alloc,
+            &a.numerator,
+            &b.denominator,
+        );
+        defer left.deinit();
 
-        copy.* = .{
-            .numerator = undefined,
-            .denominator = undefined,
-        };
+        var right = try BigInt.mul(
+            alloc,
+            &b.numerator,
+            &a.denominator,
+        );
+        defer right.deinit();
 
-        errdefer {
-            copy.numerator.deinit();
-            copy.denominator.deinit();
-        }
-
-        copy.numerator = try self.numerator.clone(alloc);
-        copy.denominator = try self.denominator.clone(alloc);
-
-        return copy;
+        return BigInt.cmp(&left, &right);
     }
 
     fn normalize(self: *Self) !void {
-        const alloc = getAllocator();
-
         self.numerator.normalize();
         self.denominator.normalize();
 
@@ -94,10 +106,19 @@ pub const Rational = struct {
             return;
         }
 
+        self.normalizeSign();
+        try self.reduce();
+    }
+
+    fn normalizeSign(self: *Self) void {
         if (self.denominator.negative) {
             self.denominator.negate();
             self.numerator.negate();
         }
+    }
+
+    fn reduce(self: *Self) !void {
+        const alloc = getAllocator();
 
         var divisor: BigInt = try .gcd(
             alloc,
@@ -109,243 +130,87 @@ pub const Rational = struct {
         if (divisor.isOne())
             return;
 
-        var new_numerator: BigInt = try .divExact(
+        var numerator: BigInt = try .divExact(
             alloc,
             &self.numerator,
             &divisor,
         );
-        errdefer new_numerator.deinit();
+        errdefer numerator.deinit();
 
-        var new_denominator: BigInt = try .divExact(
+        var denominator: BigInt = try .divExact(
             alloc,
             &self.denominator,
             &divisor,
         );
-        errdefer new_denominator.deinit();
+        errdefer denominator.deinit();
 
         self.numerator.deinit();
         self.denominator.deinit();
 
-        self.numerator = new_numerator;
-        self.denominator = new_denominator;
+        self.numerator = numerator;
+        self.denominator = denominator;
     }
 
-    pub fn eql(
-        a: *const Self,
-        b: *const Self,
-    ) bool {
-        return BigInt.eql(&a.numerator, &b.numerator) and
-            BigInt.eql(&a.denominator, &b.denominator);
-    }
-
-    pub fn lessThan(
-        a: *const Self,
-        b: *const Self,
-    ) !bool {
-        const alloc = allocator orelse unreachable;
-
-        var left = try BigInt.mul(
-            &a.numerator,
-            &b.denominator,
-            alloc,
-        );
-        defer left.deinit();
-
-        var right = try BigInt.mul(
-            &b.numerator,
-            &a.denominator,
-            alloc,
-        );
-        defer right.deinit();
-
-        return BigInt.cmp(&left, &right) == .lt;
-    }
-
-    pub fn greaterThan(
-        a: *const Self,
-        b: *const Self,
-    ) !bool {
-        const alloc = allocator orelse unreachable;
-
-        var left = try BigInt.mul(
-            &a.numerator,
-            &b.denominator,
-            alloc,
-        );
-        defer left.deinit();
-
-        var right = try BigInt.mul(
-            &b.numerator,
-            &a.denominator,
-            alloc,
-        );
-        defer right.deinit();
-
-        return BigInt.cmp(&left, &right) == .gt;
-    }
-
-    pub fn add(
+    fn operate(
+        comptime operation: Operation,
         a: *const Self,
         b: *const Self,
     ) !*Self {
-        const alloc = allocator orelse unreachable;
+        const alloc = getAllocator();
 
-        var ad = try BigInt.mul(
-            &a.numerator,
-            &b.denominator,
-            alloc,
-        );
-        defer ad.deinit();
+        var numerator: BigInt = switch (operation) {
+            .add, .sub => blk: {
+                var left: BigInt = try .mul(
+                    alloc,
+                    &a.numerator,
+                    &b.denominator,
+                );
+                defer left.deinit();
 
-        var cb = try BigInt.mul(
-            &b.numerator,
-            &a.denominator,
-            alloc,
-        );
-        defer cb.deinit();
+                var right: BigInt = try .mul(
+                    alloc,
+                    &b.numerator,
+                    &a.denominator,
+                );
+                defer right.deinit();
 
-        var numerator = try BigInt.add(
-            &ad,
-            &cb,
-            alloc,
-        );
+                if (operation == .sub)
+                    right.negate();
+
+                break :blk try .add(
+                    alloc,
+                    &left,
+                    &right,
+                );
+            },
+
+            .mul, .div => try .mul(
+                alloc,
+                &a.numerator,
+                if (operation == .mul)
+                    &b.numerator
+                else
+                    &b.denominator,
+            ),
+        };
         errdefer numerator.deinit();
 
-        var denominator = try BigInt.mul(
-            &a.denominator,
-            &b.denominator,
-            alloc,
-        );
-        errdefer denominator.deinit();
+        var denominator: BigInt = switch (operation) {
+            .add, .sub, .mul => try .mul(
+                alloc,
+                &a.denominator,
+                &b.denominator,
+            ),
 
-        const result = try alloc.create(Self);
-
-        result.* = .{
-            .numerator = numerator,
-            .denominator = denominator,
+            .div => try .mul(
+                alloc,
+                &a.denominator,
+                &b.numerator,
+            ),
         };
-        errdefer result.deinit();
-
-        try result.normalize();
-
-        if (rational_registry) |registry|
-            try registry.adopt(result);
-
-        return result;
-    }
-
-    pub fn sub(
-        a: *const Self,
-        b: *const Self,
-    ) !*Self {
-        const alloc = allocator orelse unreachable;
-
-        var numerator = try BigInt.mul(
-            &a.numerator,
-            &b.denominator,
-            alloc,
-        );
-        defer numerator.deinit();
-
-        var other_numerator = try BigInt.mul(
-            &b.numerator,
-            &a.denominator,
-            alloc,
-        );
-        defer other_numerator.deinit();
-
-        other_numerator.negate();
-
-        var result_numerator = try BigInt.add(
-            &numerator,
-            &other_numerator,
-            alloc,
-        );
-        errdefer result_numerator.deinit();
-
-        var denominator = try BigInt.mul(
-            &a.denominator,
-            &b.denominator,
-            alloc,
-        );
         errdefer denominator.deinit();
 
-        const result = try alloc.create(Self);
-
-        result.* = .{
-            .numerator = result_numerator,
-            .denominator = denominator,
-        };
-        errdefer result.deinit();
-
-        try result.normalize();
-
-        if (rational_registry) |registry|
-            try registry.adopt(result);
-
-        return result;
-    }
-
-    pub fn mul(
-        a: *const Self,
-        b: *const Self,
-    ) !*Self {
-        const alloc = allocator orelse unreachable;
-
-        var numerator = try BigInt.mul(
-            &a.numerator,
-            &b.numerator,
-            alloc,
-        );
-        errdefer numerator.deinit();
-
-        var denominator = try BigInt.mul(
-            &a.denominator,
-            &b.denominator,
-            alloc,
-        );
-        errdefer denominator.deinit();
-
-        const result = try alloc.create(Self);
-
-        result.* = .{
-            .numerator = numerator,
-            .denominator = denominator,
-        };
-        errdefer result.deinit();
-
-        try result.normalize();
-
-        if (rational_registry) |registry|
-            try registry.adopt(result);
-
-        return result;
-    }
-
-    pub fn div(
-        a: *const Self,
-        b: *const Self,
-    ) !*Self {
-        const alloc = allocator orelse unreachable;
-
-        if (b.numerator.isZero())
-            return error.DivisionByZero;
-
-        var numerator = try BigInt.mul(
-            &a.numerator,
-            &b.denominator,
-            alloc,
-        );
-        errdefer numerator.deinit();
-
-        var denominator = try BigInt.mul(
-            &a.denominator,
-            &b.numerator,
-            alloc,
-        );
-        errdefer denominator.deinit();
-
-        if (denominator.negative) {
+        if (operation == .div and denominator.negative) {
             denominator.negate();
             numerator.negate();
         }
@@ -364,6 +229,25 @@ pub const Rational = struct {
             try registry.adopt(result);
 
         return result;
+    }
+
+    pub fn add(a: *const Self, b: *const Self) !*Self {
+        return operate(.add, a, b);
+    }
+
+    pub fn sub(a: *const Self, b: *const Self) !*Self {
+        return operate(.sub, a, b);
+    }
+
+    pub fn mul(a: *const Self, b: *const Self) !*Self {
+        return operate(.mul, a, b);
+    }
+
+    pub fn div(a: *const Self, b: *const Self) !*Self {
+        if (b.numerator.isZero())
+            return error.DivisionByZero;
+
+        return operate(.div, a, b);
     }
 
     pub fn write(

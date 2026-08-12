@@ -1,5 +1,6 @@
 const std = @import("std");
 
+const BigInt = @import("numeric/big_int.zig").BigInt;
 const Rational = @import("numeric/rational.zig").Rational;
 const RationalRegistry = @import("numeric/rational_registry.zig").RationalRegistry;
 const Quantity = @import("quantity/quantity.zig").Quantity;
@@ -18,13 +19,13 @@ pub fn main(init: std.process.Init) !void {
 
     const allocator = gpa.allocator();
 
-    var unit_registry = UnitRegistry(Rational).init(allocator);
+    var unit_registry: UnitRegistry(Rational) = .init(allocator);
     defer unit_registry.deinit();
 
-    var rational_registry = RationalRegistry.init(allocator);
+    var rational_registry: RationalRegistry = .init(allocator);
     defer rational_registry.deinit();
 
-    var quantity_registry = QuantityRegistry(Rational).init(allocator);
+    var quantity_registry: QuantityRegistry(Rational) = .init(allocator);
     defer quantity_registry.deinit();
 
     const RationalDefinition = UnitDefinition(Rational);
@@ -61,7 +62,7 @@ pub fn main(init: std.process.Init) !void {
     );
 
     const velocity_1: *RationalQuantity = try .init(
-        try Rational.init(10, 1), // TODO: fix
+        try Rational.init(1, 10),
         velocity,
     );
 
@@ -123,8 +124,6 @@ pub fn main(init: std.process.Init) !void {
     const writer_interface = &stdout_writer.interface;
 
     try unit_registry.write(writer_interface);
-    try writer_interface.writeByte('\n');
-    try rational_registry.write(writer_interface);
     try writer_interface.writeByte('\n');
     try quantity_registry.write(writer_interface);
 }
