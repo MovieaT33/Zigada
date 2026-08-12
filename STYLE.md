@@ -42,7 +42,7 @@
 16. **Order** — order functions by role: lifecycle, copy/clone, queries, mutation, conversion, writers, helpers.
 17. **Inline** — do not use `inline`.
 18. **Comptime** — place comptime parameters after `self` and before other runtime parameters.
-19. **Length** — keep functions under *40* lines, except in `main.zig`.
+19. **Length** — keep functions under *60* lines, except in `main.zig`.
 20. **Input** — handle all input variants and relevant edge cases.
 21. **Errors** — explicitly specify a function's only possible error.
 22. **Error set** — define a public `Error` set only when custom errors are needed; use it instead of standalone `error.*`.

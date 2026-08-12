@@ -141,9 +141,47 @@ pub fn UnitDefinition(comptime N: type) type {
             );
         }
 
-        pub fn eql(left: Self, right: Self) bool {
-            return factorsEql(.numerator, left, right) and
-                factorsEql(.denominator, left, right);
+        pub fn eql(lhs: Self, rhs: Self) bool {
+            return factorsEql(.numerator, lhs, rhs) and
+                factorsEql(.denominator, lhs, rhs);
+        }
+
+        fn factorsEql(
+            comptime side: FactorSide,
+            lhs: Self,
+            rhs: Self,
+        ) bool {
+            const lhs_factors = switch (side) {
+                .numerator => lhs.numerator.items,
+                .denominator => lhs.denominator.items,
+            };
+
+            const rhs_factors = switch (side) {
+                .numerator => rhs.numerator.items,
+                .denominator => rhs.denominator.items,
+            };
+
+            if (lhs_factors.len != rhs_factors.len)
+                return false;
+
+            for (lhs_factors) |lhs_factor| {
+                var matched = false;
+
+                for (rhs_factors) |rhs_factor| {
+                    if (std.mem.eql(u8, lhs_factor.unit, rhs_factor.unit)) {
+                        if (lhs_factor.power != rhs_factor.power)
+                            return false;
+
+                        matched = true;
+                        break;
+                    }
+                }
+
+                if (!matched)
+                    return false;
+            }
+
+            return true;
         }
 
         fn addFactor(
@@ -185,19 +223,24 @@ pub fn UnitDefinition(comptime N: type) type {
                 var removed_numerator = false;
 
                 while (denominator_index < self.denominator.items.len) {
-                    switch (cancelFactors(
+                    const cancel_result = cancelFactors(
                         &self.numerator.items[numerator_index],
                         &self.denominator.items[denominator_index],
-                    )) {
+                    );
+
+                    switch (cancel_result) {
                         .no_match => denominator_index += 1,
+
                         .remove_denominator => {
                             _ = self.denominator.orderedRemove(denominator_index);
                         },
+
                         .remove_numerator => {
                             _ = self.numerator.orderedRemove(numerator_index);
                             removed_numerator = true;
                             break;
                         },
+
                         .remove_both => {
                             _ = self.numerator.orderedRemove(numerator_index);
                             _ = self.denominator.orderedRemove(denominator_index);
@@ -212,18 +255,73 @@ pub fn UnitDefinition(comptime N: type) type {
             }
         }
 
+        fn cancelFactors(
+            numerator: *UnitFactor,
+            denominator: *UnitFactor,
+        ) CancelResult {
+            if (!std.mem.eql(u8, numerator.unit, denominator.unit))
+                return .no_match;
+
+            if (numerator.power > denominator.power) {
+                numerator.power -= denominator.power;
+                return .remove_denominator;
+            }
+
+            if (numerator.power < denominator.power) {
+                denominator.power -= numerator.power;
+                return .remove_numerator;
+            }
+
+            return .remove_both;
+        }
+
+        pub fn combine(
+            comptime operation: Operation,
+            comptime cross_cancellation: bool,
+            lhs: *const Self,
+            rhs: *const Self,
+            constraint: Constraint,
+            name: ?[]const u8,
+        ) Allocator.Error!*Self {
+            var definition = try lhs.clone(
+                constraint,
+                name,
+            );
+
+            const rhs_side: FactorSide = switch (operation) {
+                .mul => .numerator,
+                .div => .denominator,
+                else => unreachable,
+            };
+
+            try definition.addFactors(
+                rhs_side,
+                rhs.numerator.items,
+            );
+
+            try definition.addFactors(
+                rhs_side.opposite(),
+                rhs.denominator.items,
+            );
+
+            if (cross_cancellation)
+                definition.crossCancel();
+
+            return definition;
+        }
+
         pub fn mul(
             comptime cross_cancellation: bool,
-            left: *const Self,
-            right: *const Self,
+            lhs: *const Self,
+            rhs: *const Self,
             constraint: Constraint,
             name: ?[]const u8,
         ) Allocator.Error!*Self {
             return combine(
                 .mul,
                 cross_cancellation,
-                left,
-                right,
+                lhs,
+                rhs,
                 constraint,
                 name,
             );
@@ -231,51 +329,19 @@ pub fn UnitDefinition(comptime N: type) type {
 
         pub fn div(
             comptime cross_cancellation: bool,
-            left: *const Self,
-            right: *const Self,
+            lhs: *const Self,
+            rhs: *const Self,
             constraint: Constraint,
             name: ?[]const u8,
         ) Allocator.Error!*Self {
             return combine(
                 .div,
                 cross_cancellation,
-                left,
-                right,
+                lhs,
+                rhs,
                 constraint,
                 name,
             );
-        }
-
-        pub fn combine(
-            comptime operation: Operation,
-            comptime cross_cancellation: bool,
-            left: *const Self,
-            right: *const Self,
-            constraint: Constraint,
-            name: ?[]const u8,
-        ) Allocator.Error!*Self {
-            var definition = try left.clone(constraint, name);
-
-            const right_side: FactorSide = switch (operation) {
-                .mul => .numerator,
-                .div => .denominator,
-                else => unreachable,
-            };
-
-            try definition.addFactors(
-                right_side,
-                right.numerator.items,
-            );
-
-            try definition.addFactors(
-                right_side.opposite(),
-                right.denominator.items,
-            );
-
-            if (cross_cancellation)
-                definition.crossCancel();
-
-            return definition;
         }
 
         pub fn write(
@@ -304,68 +370,6 @@ pub fn UnitDefinition(comptime N: type) type {
         ) std.Io.Writer.Error!void {
             try self.appendNumerator(writer);
             try self.appendDenominator(writer);
-        }
-
-        fn getAllocator() Allocator {
-            return allocator orelse unreachable;
-        }
-
-        fn factorsEql(
-            comptime side: FactorSide,
-            left: Self,
-            right: Self,
-        ) bool {
-            const left_factors = switch (side) {
-                .numerator => left.numerator.items,
-                .denominator => left.denominator.items,
-            };
-
-            const right_factors = switch (side) {
-                .numerator => right.numerator.items,
-                .denominator => right.denominator.items,
-            };
-
-            if (left_factors.len != right_factors.len)
-                return false;
-
-            for (left_factors) |left_factor| {
-                var matched = false;
-
-                for (right_factors) |right_factor| {
-                    if (std.mem.eql(u8, left_factor.unit, right_factor.unit)) {
-                        if (left_factor.power != right_factor.power)
-                            return false;
-
-                        matched = true;
-                        break;
-                    }
-                }
-
-                if (!matched)
-                    return false;
-            }
-
-            return true;
-        }
-
-        fn cancelFactors(
-            numerator: *UnitFactor,
-            denominator: *UnitFactor,
-        ) CancelResult {
-            if (!std.mem.eql(u8, numerator.unit, denominator.unit))
-                return .no_match;
-
-            if (numerator.power > denominator.power) {
-                numerator.power -= denominator.power;
-                return .remove_denominator;
-            }
-
-            if (numerator.power < denominator.power) {
-                denominator.power -= numerator.power;
-                return .remove_numerator;
-            }
-
-            return .remove_both;
         }
 
         fn appendNumerator(
@@ -399,6 +403,10 @@ pub fn UnitDefinition(comptime N: type) type {
 
             if (parenthesize)
                 try writer.writeByte(')');
+        }
+
+        fn getAllocator() Allocator {
+            return allocator orelse unreachable;
         }
     };
 }

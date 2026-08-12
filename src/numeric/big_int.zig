@@ -8,32 +8,37 @@ pub const BigInt = struct {
     const Limb = u64;
     const Wide = u128;
 
-    allocator: Allocator,
-    limbs: std.ArrayList(Limb),
-    negative: bool,
+    pub const DivResult = struct {
+        quotient: Self,
+        remainder: Self,
+    };
 
-    pub fn init(allocator: Allocator) Self {
+    pub var allocator: ?Allocator = null;
+
+    negative: bool,
+    limbs: std.ArrayList(Limb),
+
+    pub fn init() Self {
         return .{
-            .allocator = allocator,
-            .limbs = .empty,
             .negative = false,
+            .limbs = .empty,
         };
     }
 
     pub fn deinit(self: *Self) void {
-        self.limbs.deinit(self.allocator);
+        const alloc = getAllocator();
+        self.limbs.deinit(alloc);
     }
 
-    pub fn clone(self: *const Self) !Self {
-        var result = init(self.allocator);
+    pub fn clone(self: *const Self) Allocator.Error!Self {
+        const alloc = getAllocator();
+
+        var result = init();
         errdefer result.deinit();
 
         result.negative = self.negative;
 
-        try result.limbs.appendSlice(
-            self.allocator,
-            self.limbs.items,
-        );
+        try result.limbs.appendSlice(alloc, self.limbs.items);
 
         return result;
     }
@@ -78,20 +83,22 @@ pub const BigInt = struct {
     pub fn setUnsigned(
         self: *Self,
         value: Limb,
-    ) !void {
+    ) Allocator.Error!void {
+        const alloc = getAllocator();
+
         self.limbs.clearRetainingCapacity();
         self.negative = false;
 
         if (value == 0)
             return;
 
-        try self.limbs.append(self.allocator, value);
+        try self.limbs.append(alloc, value);
     }
 
     pub fn setSigned(
         self: *Self,
         value: i64,
-    ) !void {
+    ) Allocator.Error!void {
         const magnitude: u64 = if (value < 0)
             @as(u64, @intCast(-(value + 1))) + 1
         else
@@ -131,11 +138,12 @@ pub const BigInt = struct {
     }
 
     fn addAbs(
-        allocator: Allocator,
         a: *const Self,
         b: *const Self,
-    ) !Self {
-        var result = init(allocator);
+    ) Allocator.Error!Self {
+        const alloc = getAllocator();
+
+        var result = init();
         errdefer result.deinit();
 
         const max_len = @max(
@@ -143,10 +151,7 @@ pub const BigInt = struct {
             b.limbs.items.len,
         );
 
-        try result.limbs.ensureTotalCapacity(
-            allocator,
-            max_len + 1,
-        );
+        try result.limbs.ensureTotalCapacity(alloc, max_len + 1);
 
         var carry: Wide = 0;
 
@@ -163,35 +168,27 @@ pub const BigInt = struct {
 
             const sum = av + bv + carry;
 
-            try result.limbs.append(
-                allocator,
-                @truncate(sum),
-            );
+            try result.limbs.append(alloc, @truncate(sum));
 
             carry = sum >> 64;
         }
 
         if (carry != 0)
-            try result.limbs.append(
-                allocator,
-                @truncate(carry),
-            );
+            try result.limbs.append(alloc, @truncate(carry));
 
         return result;
     }
 
     fn subAbs(
-        allocator: Allocator,
         a: *const Self,
         b: *const Self,
-    ) !Self {
-        var result = init(allocator);
+    ) Allocator.Error!Self {
+        const alloc = getAllocator();
+
+        var result = init();
         errdefer result.deinit();
 
-        try result.limbs.ensureTotalCapacity(
-            allocator,
-            a.limbs.items.len,
-        );
+        try result.limbs.ensureTotalCapacity(alloc, a.limbs.items.len);
 
         var borrow: Wide = 0;
 
@@ -206,19 +203,13 @@ pub const BigInt = struct {
             const subtrahend = bv + borrow;
 
             if (av >= subtrahend) {
-                try result.limbs.append(
-                    allocator,
-                    @truncate(av - subtrahend),
-                );
+                try result.limbs.append(alloc, @truncate(av - subtrahend));
                 borrow = 0;
             } else {
                 const value =
                     (@as(Wide, 1) << 64) + av - subtrahend;
 
-                try result.limbs.append(
-                    allocator,
-                    @truncate(value),
-                );
+                try result.limbs.append(alloc, @truncate(value));
                 borrow = 1;
             }
         }
@@ -228,31 +219,30 @@ pub const BigInt = struct {
     }
 
     pub fn add(
-        allocator: Allocator,
         a: *const Self,
         b: *const Self,
-    ) !Self {
+    ) Allocator.Error!Self {
         if (a.isZero())
-            return b.clone();
+            return try b.clone();
 
         if (b.isZero())
-            return a.clone();
+            return try a.clone();
 
         if (a.negative == b.negative) {
-            var result = try addAbs(allocator, a, b);
+            var result = try addAbs(a, b);
             result.negative = a.negative;
             return result;
         }
 
         return switch (cmpAbs(a, b)) {
-            .eq => init(allocator),
+            .eq => init(),
             .gt => blk: {
-                var result = try subAbs(allocator, a, b);
+                var result = try subAbs(a, b);
                 result.negative = a.negative;
                 break :blk result;
             },
             .lt => blk: {
-                var result = try subAbs(allocator, b, a);
+                var result = try subAbs(b, a);
                 result.negative = b.negative;
                 break :blk result;
             },
@@ -260,11 +250,12 @@ pub const BigInt = struct {
     }
 
     pub fn mul(
-        allocator: Allocator,
         a: *const Self,
         b: *const Self,
-    ) !Self {
-        var result = init(allocator);
+    ) Allocator.Error!Self {
+        const alloc = getAllocator();
+
+        var result = init();
         errdefer result.deinit();
 
         if (a.isZero() or b.isZero())
@@ -274,7 +265,7 @@ pub const BigInt = struct {
             a.limbs.items.len +
             b.limbs.items.len;
 
-        try result.limbs.resize(allocator, len);
+        try result.limbs.resize(alloc, len);
         @memset(result.limbs.items, 0);
 
         for (a.limbs.items, 0..) |av, i| {
@@ -313,11 +304,9 @@ pub const BigInt = struct {
         return result;
     }
 
-    pub fn mod(
-        allocator: Allocator,
-        a: *const Self,
-        b: *const Self,
-    ) !Self {
+    pub fn mod(a: *const Self, b: *const Self) !Self {
+        const alloc = getAllocator();
+
         if (b.isZero())
             return error.DivisionByZero;
 
@@ -331,7 +320,7 @@ pub const BigInt = struct {
 
         dividend.negative = false;
 
-        var result = init(allocator);
+        var result = init();
         errdefer result.deinit();
 
         if (dividend.isZero())
@@ -342,10 +331,7 @@ pub const BigInt = struct {
             return dividend;
         }
 
-        try result.limbs.ensureTotalCapacity(
-            allocator,
-            divisor.limbs.items.len,
-        );
+        try result.limbs.ensureTotalCapacity(alloc, divisor.limbs.items.len);
 
         var limb_index = dividend.limbs.items.len;
 
@@ -361,13 +347,11 @@ pub const BigInt = struct {
 
                 try shiftLeftOne(&result);
 
-                if (((limb >> @as(u6, @intCast(bit_index))) & 1) != 0) {
+                if (((limb >> @as(u6, @intCast(bit_index))) & 1) != 0)
                     try addOne(&result);
-                }
 
-                if (cmpAbs(&result, &divisor) != .lt) {
+                if (cmpAbs(&result, &divisor) != .lt)
                     subAbsInPlace(&result, &divisor);
-                }
             }
         }
 
@@ -377,7 +361,9 @@ pub const BigInt = struct {
         return result;
     }
 
-    fn shiftLeftOne(self: *Self) !void {
+    fn shiftLeftOne(self: *Self) Allocator.Error!void {
+        const alloc = getAllocator();
+
         if (self.isZero())
             return;
 
@@ -391,12 +377,14 @@ pub const BigInt = struct {
         }
 
         if (carry != 0)
-            try self.limbs.append(self.allocator, carry);
+            try self.limbs.append(alloc, carry);
     }
 
-    fn addOne(self: *Self) !void {
+    fn addOne(self: *Self) Allocator.Error!void {
+        const alloc = getAllocator();
+
         if (self.isZero()) {
-            try self.limbs.append(self.allocator, 1);
+            try self.limbs.append(alloc, 1);
             return;
         }
 
@@ -407,7 +395,7 @@ pub const BigInt = struct {
                 return;
         }
 
-        try self.limbs.append(self.allocator, 1);
+        try self.limbs.append(alloc, 1);
     }
 
     fn subAbsInPlace(self: *Self, other: *const Self) void {
@@ -440,21 +428,16 @@ pub const BigInt = struct {
         self.normalize();
     }
 
-    pub fn div(
-        allocator: Allocator,
-        a: *const Self,
-        b: *const Self,
-    ) !struct {
-        quotient: Self,
-        remainder: Self,
-    } {
+    pub fn div(a: *const Self, b: *const Self) !DivResult {
+        const alloc = getAllocator();
+
         if (b.isZero())
             return error.DivisionByZero;
 
-        var quotient = init(allocator);
+        var quotient = init();
         errdefer quotient.deinit();
 
-        var remainder = init(allocator);
+        var remainder = init();
         errdefer remainder.deinit();
 
         if (a.isZero()) {
@@ -489,10 +472,7 @@ pub const BigInt = struct {
                 ],
             ));
 
-        try quotient.limbs.resize(
-            allocator,
-            (bit_count + 63) / 64,
-        );
+        try quotient.limbs.resize(alloc, (bit_count + 63) / 64);
         @memset(quotient.limbs.items, 0);
 
         var bit_index = bit_count;
@@ -542,16 +522,8 @@ pub const BigInt = struct {
         };
     }
 
-    pub fn divExact(
-        allocator: Allocator,
-        a: *const Self,
-        b: *const Self,
-    ) !Self {
-        var result = try div(
-            allocator,
-            a,
-            b,
-        );
+    pub fn divExact(a: *const Self, b: *const Self) !Self {
+        var result = try div(a, b);
 
         if (!result.remainder.isZero()) {
             result.remainder.deinit();
@@ -565,11 +537,7 @@ pub const BigInt = struct {
         return result.quotient;
     }
 
-    pub fn gcd(
-        allocator: Allocator,
-        a: *const Self,
-        b: *const Self,
-    ) !Self {
+    pub fn gcd(a: *const Self, b: *const Self) !Self {
         var x = try a.clone();
         errdefer x.deinit();
 
@@ -580,11 +548,7 @@ pub const BigInt = struct {
         y.negative = false;
 
         while (!y.isZero()) {
-            const remainder = try mod(
-                allocator,
-                &x,
-                &y,
-            );
+            const remainder = try mod(&x, &y);
 
             x.deinit();
 
@@ -622,5 +586,9 @@ pub const BigInt = struct {
                 try writer.print("{:0>20}", .{limb});
             }
         }
+    }
+
+    fn getAllocator() Allocator {
+        return allocator orelse unreachable;
     }
 };

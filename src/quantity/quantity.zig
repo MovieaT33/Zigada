@@ -41,38 +41,102 @@ pub fn Quantity(comptime N: type) type {
         }
 
         pub fn deinit(self: *Self) void {
-            const alloc = getAllocator();
-            alloc.destroy(self);
+            getAllocator().destroy(self);
         }
 
-        pub fn add(left: *const Self, right: *const Self) !*Self {
-            return operate(.add, left, right);
+        pub fn operate(
+            comptime operation: Operation,
+            lhs: *const Self,
+            rhs: *const Self,
+        ) !*Self {
+            if (!lhs.definition.eql(rhs.definition.*))
+                unreachable;
+
+            const value: *N = switch (operation) {
+                .add => try .add(lhs.value, rhs.value),
+                .sub => try .sub(lhs.value, rhs.value),
+                else => unreachable,
+            };
+
+            return try init(
+                value,
+                lhs.definition,
+            );
         }
 
-        pub fn sub(left: *const Self, right: *const Self) !*Self {
-            return operate(.sub, left, right);
+        pub fn scaleValue(
+            comptime operation: Operation,
+            lhs: *const Self,
+            rhs: *const N,
+        ) !Self {
+            const value: *N = switch (operation) {
+                .mul => try .mul(lhs.value, rhs),
+                .div => try .div(lhs.value, rhs),
+            };
+
+            return try init(
+                value,
+                lhs.definition,
+            );
         }
 
-        pub fn scale(left: *const Self, right: *const N) !*Self {
-            return scaleValue(.mul, left, right);
+        pub fn combine(
+            comptime operation: Operation,
+            comptime cross_cancellation: bool,
+            lhs: *const Self,
+            rhs: *const Self,
+            constraint: Constraint,
+            name: ?[]const u8,
+        ) !*Self {
+            const definition: *UnitDefinition(N) = try .combine(
+                operation,
+                cross_cancellation,
+                lhs.definition,
+                rhs.definition,
+                constraint,
+                name,
+            );
+
+            const value: *N = switch (operation) {
+                .mul => try .mul(lhs.value, rhs.value),
+                .div => try .div(lhs.value, rhs.value),
+                else => unreachable,
+            };
+
+            return try init(
+                value,
+                definition,
+            );
         }
 
-        pub fn unscale(left: *const Self, right: *const N) !*Self {
-            return scaleValue(.div, left, right);
+        pub fn add(lhs: *const Self, rhs: *const Self) !*Self {
+            return operate(.add, lhs, rhs);
+        }
+
+        pub fn sub(lhs: *const Self, rhs: *const Self) !*Self {
+            return operate(.sub, lhs, rhs);
+        }
+
+        pub fn scale(lhs: *const Self, rhs: *const N) !*Self {
+            return scaleValue(.mul, lhs, rhs);
+        }
+
+        pub fn unscale(lhs: *const Self, rhs: *const N) !*Self {
+            return scaleValue(.div, lhs, rhs);
         }
 
         pub fn mul(
             comptime cross_cancellation: bool,
-            left: *const Self,
-            right: *const Self,
+            lhs: *const Self,
+            rhs: *const Self,
             constraint: Constraint,
             name: ?[]const u8,
         ) !*Self {
             return combine(
                 .mul,
                 cross_cancellation,
-                left,
-                right,
+                lhs,
+                rhs,
                 constraint,
                 name,
             );
@@ -80,81 +144,19 @@ pub fn Quantity(comptime N: type) type {
 
         pub fn div(
             comptime cross_cancellation: bool,
-            left: *const Self,
-            right: *const Self,
+            lhs: *const Self,
+            rhs: *const Self,
             constraint: Constraint,
             name: ?[]const u8,
         ) !*Self {
             return combine(
                 .div,
                 cross_cancellation,
-                left,
-                right,
+                lhs,
+                rhs,
                 constraint,
                 name,
             );
-        }
-
-        pub fn operate(
-            comptime operation: Operation,
-            left: *const Self,
-            right: *const Self,
-        ) !*Self {
-            if (!left.definition.eql(right.definition.*))
-                unreachable;
-
-            const value: *N = switch (operation) {
-                .add => try .add(left.value, right.value),
-                .sub => try .sub(left.value, right.value),
-                else => unreachable,
-            };
-
-            try left.definition.constraint.validate(value);
-
-            return try init(value, left.definition);
-        }
-
-        pub fn scaleValue(
-            comptime operation: Operation,
-            left: *const Self,
-            right: *const N,
-        ) !Self {
-            const value: *N = switch (operation) {
-                .mul => try .mul(left.value, right),
-                .div => try .div(left.value, right),
-            };
-
-            try left.definition.constraint.validate(value);
-
-            return try init(value, left.definition);
-        }
-
-        pub fn combine(
-            comptime operation: Operation,
-            comptime cross_cancellation: bool,
-            left: *const Self,
-            right: *const Self,
-            constraint: Constraint,
-            name: ?[]const u8,
-        ) !*Self {
-            const definition: *UnitDefinition(N) = try .combine(
-                operation,
-                cross_cancellation,
-                left.definition,
-                right.definition,
-                constraint,
-                name,
-            );
-
-            const value: *N = switch (operation) {
-                .mul => try .mul(left.value, right.value),
-                .div => try .div(left.value, right.value),
-                else => unreachable,
-            };
-
-            try definition.constraint.validate(value);
-
-            return try init(value, definition);
         }
 
         pub fn write(

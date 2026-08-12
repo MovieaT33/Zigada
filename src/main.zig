@@ -28,6 +28,8 @@ pub fn main(init: std.process.Init) !void {
     var quantity_registry: QuantityRegistry(Rational) = .init(allocator);
     defer quantity_registry.deinit();
 
+    BigInt.allocator = allocator;
+
     const RationalDefinition = UnitDefinition(Rational);
     RationalDefinition.allocator = allocator;
     RationalDefinition.unit_registry = &unit_registry;
