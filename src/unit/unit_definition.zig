@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const Operation = @import("../operation.zig").Operation;
+const ArithmeticOperation = @import("../arithmetic_operation.zig").ArithmeticOperation;
 const UnitRegistry = @import("unit_registry.zig").UnitRegistry;
 
 const Allocator = std.mem.Allocator;
@@ -312,7 +312,7 @@ pub fn UnitDefinition(comptime Numeric: type) type {
         }
 
         pub fn combine(
-            comptime operation: Operation,
+            comptime operation: ArithmeticOperation,
             comptime cross_cancellation: bool,
             lhs: *const Self,
             rhs: *const Self,

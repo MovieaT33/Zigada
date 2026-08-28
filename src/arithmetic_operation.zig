@@ -1,4 +1,4 @@
-pub const Operation = enum {
+pub const ArithmeticOperation = enum {
     add,
     sub,
     mul,

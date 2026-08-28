@@ -16,7 +16,6 @@ pub fn main(init: std.process.Init) !void {
         .safety = true,
     }){};
     defer _ = gpa.deinit();
-
     const allocator = gpa.allocator();
 
     const RationalDefinition = UnitDefinition(Rational);
@@ -68,16 +67,13 @@ pub fn main(init: std.process.Init) !void {
     );
 
     const acceleration: *RationalQuantity = try .init(
-        try Rational.init(981, 100),
+        try Rational.init(9_80665, 100000),
         extended_si.acceleration,
-        "a",
+        "g",
     );
 
-    const force = try RationalDynamics.calculateForce(
-        mass,
-        acceleration,
-        "F",
-    );
+    const force =
+        try RationalDynamics.calculateForce(mass, acceleration, "F");
 
     const area: *RationalQuantity = try .init(
         try Rational.init(4, 1),
@@ -85,11 +81,8 @@ pub fn main(init: std.process.Init) !void {
         "A",
     );
 
-    const pressure: *RationalQuantity = try RationalDynamics.calculatePressure(
-        force,
-        area,
-        "p",
-    );
+    const pressure: *RationalQuantity =
+        try RationalDynamics.calculatePressure(force, area, "p");
 
     _ = pressure;
 

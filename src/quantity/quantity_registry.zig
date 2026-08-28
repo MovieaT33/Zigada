@@ -33,7 +33,7 @@ pub fn QuantityRegistry(comptime Quantity: type) type {
         pub fn write(
             self: *const Self,
             writer: *std.Io.Writer,
-        ) std.Io.Writer.Error!void {
+        ) !void {
             for (self.quantities.items) |quantity| {
                 try quantity.write(writer);
                 try writer.writeByte('\n');

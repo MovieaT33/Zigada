@@ -2,8 +2,6 @@ const std = @import("std");
 
 const SI = @import("si.zig").SI;
 
-const Allocator = std.mem.Allocator;
-
 pub fn ExtendedSI(comptime Definition: type) type {
     return struct {
         const Self = @This();
@@ -14,19 +12,19 @@ pub fn ExtendedSI(comptime Definition: type) type {
         force: *Definition,
         area: *Definition,
         pressure: *Definition,
-
-        // Currently unused:
+        joule: *Definition,
+        power: *Definition,
+        volume: *Definition,
         density: *Definition,
-        energy: *Definition,
+
+        // Unused
         frequency: *Definition,
         momentum: *Definition,
-        volume: *Definition,
-        work: *Definition,
 
         pub fn create(
             non_negative: Definition.Constraint,
             si: SI(Definition),
-        ) Allocator.Error!Self {
+        ) std.mem.Allocator.Error!Self {
             const name_prefix = "extended si/";
 
             const velocity: *Definition = try .div(
@@ -74,19 +72,55 @@ pub fn ExtendedSI(comptime Definition: type) type {
                 null,
             );
 
+            const joule: *Definition = try .mul(
+                false,
+                force,
+                si.meter,
+                non_negative,
+                name_prefix ++ "joule",
+                null,
+            );
+
+            const power: *Definition = try .div(
+                true,
+                joule,
+                si.second,
+                non_negative,
+                name_prefix ++ "power",
+                null,
+            );
+
+            const volume: *Definition = try .mul(
+                false,
+                area,
+                si.meter,
+                non_negative,
+                name_prefix ++ "volume",
+                null,
+            );
+
+            const density: *Definition = try .div(
+                true,
+                si.kilogram,
+                volume,
+                non_negative,
+                name_prefix ++ "density",
+                null,
+            );
+
             return .{
                 .velocity = velocity,
                 .acceleration = acceleration,
                 .force = force,
                 .area = area,
                 .pressure = pressure,
+                .joule = joule,
+                .power = power,
+                .volume = volume,
+                .density = density,
 
-                .density = undefined,
-                .energy = undefined,
                 .frequency = undefined,
                 .momentum = undefined,
-                .volume = undefined,
-                .work = undefined,
             };
         }
     };

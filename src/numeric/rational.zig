@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const Operation = @import("../operation.zig").Operation;
+const ArithmeticOperation = @import("../arithmetic_operation.zig").ArithmeticOperation;
 const BigInt = @import("big_int.zig").BigInt;
 const RationalRegistry = @import("rational_registry.zig").RationalRegistry;
 
@@ -181,7 +181,7 @@ pub const Rational = struct {
     }
 
     fn operate(
-        comptime operation: Operation,
+        comptime operation: ArithmeticOperation,
         lhs: *const Self,
         rhs: *const Self,
     ) !*Self {
@@ -261,7 +261,7 @@ pub const Rational = struct {
         return operate(.div, lhs, rhs);
     }
 
-    pub fn write(
+    pub fn writeFraction(
         self: *const Self,
         writer: *std.Io.Writer,
     ) std.Io.Writer.Error!void {
@@ -270,6 +270,51 @@ pub const Rational = struct {
         if (!self.denominator.isOne()) {
             try writer.writeByte('/');
             try self.denominator.write(writer);
+        }
+    }
+
+    pub fn writeDecimal(
+        self: *const Self,
+        writer: *std.Io.Writer,
+        precision: usize,
+    ) !void {
+        var dividend = try self.numerator.clone();
+        defer dividend.deinit();
+
+        if (dividend.negative) {
+            try writer.writeByte('-');
+            dividend.negate();
+        }
+
+        var div_result = try BigInt.div(&dividend, &self.denominator);
+        defer div_result.quotient.deinit();
+
+        var remainder = div_result.remainder;
+        defer remainder.deinit();
+
+        try div_result.quotient.write(writer);
+
+        if (precision == 0)
+            return;
+
+        try writer.writeByte('.');
+
+        var ten: BigInt = .init();
+        defer ten.deinit();
+        try ten.setUnsigned(10);
+
+        for (0..precision) |_| {
+            const scaled_rem: BigInt = try .mul(&remainder, &ten);
+            remainder.deinit();
+            remainder = scaled_rem;
+
+            var step = try BigInt.div(&remainder, &self.denominator);
+            defer step.quotient.deinit();
+
+            try step.quotient.write(writer);
+
+            remainder.deinit();
+            remainder = step.remainder;
         }
     }
 

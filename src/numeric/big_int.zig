@@ -26,19 +26,19 @@ pub const BigInt = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        const _allocator = getAllocator();
-        self.limbs.deinit(_allocator);
+        self.limbs.deinit(getAllocator());
     }
 
     pub fn clone(self: *const Self) Allocator.Error!Self {
-        const _allocator = getAllocator();
-
         var result = init();
         errdefer result.deinit();
 
         result.negative = self.negative;
 
-        try result.limbs.appendSlice(_allocator, self.limbs.items);
+        try result.limbs.appendSlice(
+            getAllocator(),
+            self.limbs.items,
+        );
 
         return result;
     }
@@ -72,9 +72,7 @@ pub const BigInt = struct {
     pub fn normalize(self: *Self) void {
         while (self.limbs.items.len > 0 and
             self.limbs.items[self.limbs.items.len - 1] == 0)
-        {
             _ = self.limbs.pop();
-        }
 
         if (self.isZero())
             self.negative = false;
@@ -84,15 +82,13 @@ pub const BigInt = struct {
         self: *Self,
         value: Limb,
     ) Allocator.Error!void {
-        const _allocator = getAllocator();
-
         self.limbs.clearRetainingCapacity();
         self.negative = false;
 
         if (value == 0)
             return;
 
-        try self.limbs.append(_allocator, value);
+        try self.limbs.append(getAllocator(), value);
     }
 
     pub fn setSigned(
@@ -305,8 +301,6 @@ pub const BigInt = struct {
     }
 
     pub fn mod(lhs: *const Self, rhs: *const Self) !Self {
-        const _allocator = getAllocator();
-
         if (rhs.isZero())
             return error.DivisionByZero;
 
@@ -331,7 +325,10 @@ pub const BigInt = struct {
             return dividend;
         }
 
-        try result.limbs.ensureTotalCapacity(_allocator, divisor.limbs.items.len);
+        try result.limbs.ensureTotalCapacity(
+            getAllocator(),
+            divisor.limbs.items.len,
+        );
 
         var limb_index = dividend.limbs.items.len;
 
@@ -362,8 +359,6 @@ pub const BigInt = struct {
     }
 
     fn shiftLeftOne(self: *Self) Allocator.Error!void {
-        const _allocator = getAllocator();
-
         if (self.isZero())
             return;
 
@@ -377,7 +372,7 @@ pub const BigInt = struct {
         }
 
         if (carry != 0)
-            try self.limbs.append(_allocator, carry);
+            try self.limbs.append(getAllocator(), carry);
     }
 
     fn addOne(self: *Self) Allocator.Error!void {
@@ -429,8 +424,6 @@ pub const BigInt = struct {
     }
 
     pub fn div(lhs: *const Self, rhs: *const Self) !DivResult {
-        const _allocator = getAllocator();
-
         if (rhs.isZero())
             return error.DivisionByZero;
 
@@ -472,7 +465,7 @@ pub const BigInt = struct {
                 ],
             ));
 
-        try quotient.limbs.resize(_allocator, (bit_count + 63) / 64);
+        try quotient.limbs.resize(getAllocator(), (bit_count + 63) / 64);
         @memset(quotient.limbs.items, 0);
 
         var bit_index = bit_count;
@@ -583,7 +576,7 @@ pub const BigInt = struct {
             if (index == self.limbs.items.len - 1) {
                 try writer.print("{}", .{limb});
             } else {
-                try writer.print("{:0>20}", .{limb});
+                try writer.print("{:0>20}", .{limb}); // "18_446_744_073_709_551_615".len = 20
             }
         }
     }

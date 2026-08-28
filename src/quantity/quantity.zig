@@ -1,6 +1,7 @@
 const std = @import("std");
 
-const Operation = @import("../operation.zig").Operation;
+const config = @import("../config.zig");
+const ArithmeticOperation = @import("../arithmetic_operation.zig").ArithmeticOperation;
 const UnitDefinition = @import("../unit/unit_definition.zig").UnitDefinition;
 const QuantityRegistry = @import("quantity_registry.zig").QuantityRegistry;
 
@@ -58,7 +59,7 @@ pub fn Quantity(comptime Numeric: type) type {
         }
 
         pub fn operate(
-            comptime operation: Operation,
+            comptime operation: ArithmeticOperation,
             lhs: *const Self,
             rhs: *const Self,
             label: ?[]const u8,
@@ -79,7 +80,7 @@ pub fn Quantity(comptime Numeric: type) type {
         }
 
         pub fn scaleValue(
-            comptime operation: Operation,
+            comptime operation: ArithmeticOperation,
             lhs: *const Self,
             rhs: *const Numeric,
             label: ?[]const u8,
@@ -97,7 +98,7 @@ pub fn Quantity(comptime Numeric: type) type {
         }
 
         pub fn combine(
-            comptime operation: Operation,
+            comptime operation: ArithmeticOperation,
             comptime cross_cancellation: bool,
             lhs: *const Self,
             rhs: *const Self,
@@ -203,12 +204,12 @@ pub fn Quantity(comptime Numeric: type) type {
             );
         }
 
-        pub fn write(
-            self: *const Self,
-            writer: *std.Io.Writer,
-        ) std.Io.Writer.Error!void {
+        pub fn write(self: *const Self, writer: *std.Io.Writer) !void {
             try self.writeLabel(writer);
-            try self.value.write(writer);
+
+            // try self.value.writeFraction(writer);
+            try self.value.writeDecimal(writer, config.decimal_precision);
+
             try writer.writeByte(' ');
             try self.definition.writeUnits(writer);
         }
